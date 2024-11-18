@@ -8,6 +8,7 @@ include (
     'aeron-samples',
     'aeron-system-tests',
     'aeron-test-support',
-    'aeron-all')
+    'aeron-all',
+    'aeron-rpc')
 
 
