@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,9 @@ import static org.agrona.SystemUtil.getDurationInNanos;
 import java.io.File;
 import java.io.PrintStream;
 import java.util.Map;
+import java.util.function.BiConsumer;
 
+import io.aeron.Image;
 import org.agrona.SystemUtil;
 import org.agrona.collections.Object2ObjectHashMap;
 
@@ -109,7 +111,7 @@ public class ClusterTool
         AERON_CLUSTER_TOOL_REPLAY_STREAM_ID_PROP_NAME, AERON_CLUSTER_TOOL_REPLAY_STREAM_ID_DEFAULT);
 
     /**
-     * timeout in milliseconds used by the tool
+     * Timeout in milliseconds used by the tool for operations.
      */
     public static final long TIMEOUT_MS =
         NANOSECONDS.toMillis(getDurationInNanos(AERON_CLUSTER_TOOL_TIMEOUT_PROP_NAME, 0));
@@ -214,7 +216,7 @@ public class ClusterTool
         COMMANDS.put("describe-latest-cm-snapshot", new ClusterToolCommand(
             action((clusterDir, listener) -> operator.describeLatestConsensusModuleSnapshot(
             clusterDir,
-            System.out,
+            listener,
             null)),
             "prints the contents of the latest valid consensus module snapshot."));
     }
@@ -378,7 +380,7 @@ public class ClusterTool
     }
 
     /**
-     * Determine if the given node is a leader
+     * Determine if a given node is a leader.
      *
      * @param out        to print the output to.
      * @param clusterDir where the cluster is running.
@@ -516,6 +518,22 @@ public class ClusterTool
     }
 
     /**
+     * Print out a summary of the state captured in the latest consensus module snapshot.
+     *
+     * @param out                           to print the operation result.
+     * @param clusterDir                    where the cluster is running.
+     * @param postConsensusImageDescriber   describe the data after the snapshot used for extensions.
+     * @return <code>true</code> if the snapshot was successfully described <code>false</code> otherwise.
+     */
+    public static boolean describeLatestConsensusModuleSnapshot(
+        final PrintStream out,
+        final File clusterDir,
+        final BiConsumer<Image, Aeron> postConsensusImageDescriber)
+    {
+        return BACKWARD_COMPATIBLE_OPERATIONS.describeLatestConsensusModuleSnapshot(clusterDir, out, null) == SUCCESS;
+    }
+
+    /**
      * Instruct the cluster to take a snapshot.
      *
      * @param clusterDir where the consensus module is running.
@@ -597,12 +615,12 @@ public class ClusterTool
         return BACKWARD_COMPATIBLE_OPERATIONS.loadControlProperties(clusterDir);
     }
 
-    ///////////////////////////////////////////////////////
+    /*--------------------------------------------------------------*/
 
     /**
      * Cluster Tool commands map.
      * This is to allow other tools to simply extend ClusterTool
-     *
+     * <p>
      * Note that the map is cloned and both key and value are Java immutable objects.
      *
      * @return a clone of Cluster Tool commands map

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ import io.aeron.driver.media.UdpChannel;
 
 /**
  *
- * This has been replaced by {@link TaggedMulticastFlowControlSupplier}
+ * This has been replaced by {@link TaggedMulticastFlowControlSupplier}.
  *
- * @deprecated Use {@link TaggedMulticastFlowControlSupplier} instead
+ * @deprecated Use {@link TaggedMulticastFlowControlSupplier} instead.
  */
 @Deprecated
 public class PreferredMulticastFlowControlSupplier implements FlowControlSupplier

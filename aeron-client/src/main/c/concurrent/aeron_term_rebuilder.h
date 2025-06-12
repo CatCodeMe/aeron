@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,15 +20,6 @@
 #include <string.h>
 #include "protocol/aeron_udp_protocol.h"
 #include "aeron_atomic.h"
-
-#pragma pack(push)
-#pragma pack(4)
-typedef struct aeron_data_header_as_longs_stct
-{
-    uint64_t hdr[4];
-}
-aeron_data_header_as_longs_t;
-#pragma pack(pop)
 
 inline void aeron_term_rebuilder_insert(uint8_t *dest, const uint8_t *src, size_t length)
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package io.aeron.counter.validation;
 import io.aeron.utility.ElementIO;
 
 /**
- * A gradle task for validating C counters conform to expectations set by the AeronCounter annotation in java
+ * A gradle task for validating C counters conform to expectations set by the AeronCounter annotation in java.
  */
 public class ValidateCounterExpectationsTask
 {
@@ -26,9 +26,7 @@ public class ValidateCounterExpectationsTask
      * @param args
      * Arg 0 should be the location of a counter-info.xml file with a list of CounterInfo objects
      * Arg 1 should be the location of the C source code
-     *
-     * @throws Exception
-     * it sure does
+     * @throws Exception on IO failure.
      */
     public static void main(final String[] args) throws Exception
     {

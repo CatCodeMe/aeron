@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@
 
     #if defined(_M_X64)
         #define AERON_CPU_X64 1
-
     #else
         #error Unsupported CPU!
     #endif
@@ -40,6 +39,13 @@
 
     #if defined(__x86_64__)
         #define AERON_CPU_X64 1
+    #endif
+
+    #if defined(__aarch64__)
+        #define AERON_CPU_ARM 1
+        #if defined(__STDC_NO_ATOMICS__)
+            #error C11 atomics are required to compile for aarch64!
+        #endif
     #endif
 
 #else

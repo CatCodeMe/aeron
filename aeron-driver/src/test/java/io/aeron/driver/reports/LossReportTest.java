@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@ class LossReportTest
         inOrder.verify(buffer).putStringAscii(CHANNEL_OFFSET, channel);
         inOrder.verify(buffer).putStringAscii(
             CHANNEL_OFFSET + BitUtil.align(SIZE_OF_INT + channel.length(), SIZE_OF_INT), source);
-        inOrder.verify(buffer).putLongOrdered(OBSERVATION_COUNT_OFFSET, 1L);
+        inOrder.verify(buffer).putLongRelease(OBSERVATION_COUNT_OFFSET, 1L);
     }
 
     @Test

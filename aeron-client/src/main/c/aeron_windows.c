@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -196,23 +196,6 @@ double aeron_erand48(unsigned short xsubi[3])
 void localtime_r(const time_t *timep, struct tm *result)
 {
     localtime_s(result, timep);
-}
-
-char *aeron_strndup(const char *value, size_t length)
-{
-    size_t str_length = strlen(value);
-    char *dup = NULL;
-
-    str_length = (str_length > length) ? length : str_length;
-    if (aeron_alloc((void **)&dup, str_length + 1) < 0)
-    {
-        errno = ENOMEM;
-        return NULL;
-    }
-
-    strncpy(dup, value, str_length);
-    dup[str_length] = '\0';
-    return dup;
 }
 
 #else

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -202,10 +202,10 @@ void aeron_print_counters_format(
     size_t label_length,
     void *clientd)
 {
-    char buffer[AERON_MAX_PATH];
+    char buffer[AERON_COUNTERS_MANAGER_METADATA_LENGTH];
     aeron_print_counters_stream_out_t *out = (aeron_print_counters_stream_out_t *)clientd;
 
-    snprintf(buffer, AERON_MAX_PATH - 1, "%3" PRId32 ": %20" PRId64 " - %.*s\r\n",
+    snprintf(buffer, sizeof(buffer), "%3" PRId32 ": %20" PRId64 " - %.*s\r\n",
         id, value, (int)label_length, label);
     out->stream_out(buffer);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -149,7 +149,7 @@ public final class ReceiveDestinationTransport extends ReceiveDestinationTranspo
 
         LocalSocketAddressStatus.updateBindAddress(
             localSocketAddressIndicator, bindAddressAndPort(), context.countersMetaDataBuffer());
-        localSocketAddressIndicator.setOrdered(ChannelEndpointStatus.ACTIVE);
+        localSocketAddressIndicator.setRelease(ChannelEndpointStatus.ACTIVE);
     }
 
     /**
@@ -246,5 +246,16 @@ public final class ReceiveDestinationTransport extends ReceiveDestinationTranspo
     public InetSocketAddress currentControlAddress()
     {
         return currentControlAddress;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public String toString()
+    {
+        return "ReceiveDestinationTransport{" +
+            "currentControlAddress=" + currentControlAddress +
+            ", localSocketAddressIndicator=" + localSocketAddressIndicator +
+            '}';
     }
 }

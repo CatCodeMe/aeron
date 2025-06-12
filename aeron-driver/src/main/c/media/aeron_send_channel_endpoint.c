@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,8 @@ struct mmsghdr
     unsigned int msg_len;
 };
 #endif
+
+static void aeron_send_channel_endpoint_handle_managed_resource_event(aeron_driver_managed_resource_event_t event, void *clientd);
 
 int aeron_send_channel_endpoint_create(
     aeron_send_channel_endpoint_t **endpoint,
@@ -80,8 +82,7 @@ int aeron_send_channel_endpoint_create(
 
     _endpoint->conductor_fields.refcnt = 0;
     _endpoint->conductor_fields.udp_channel = channel;
-    _endpoint->conductor_fields.managed_resource.incref = aeron_send_channel_endpoint_incref;
-    _endpoint->conductor_fields.managed_resource.decref = aeron_send_channel_endpoint_decref;
+    _endpoint->conductor_fields.managed_resource.handle_event = aeron_send_channel_endpoint_handle_managed_resource_event;
     _endpoint->conductor_fields.managed_resource.clientd = _endpoint;
     _endpoint->conductor_fields.managed_resource.registration_id = -1;
     _endpoint->conductor_fields.status = AERON_SEND_CHANNEL_ENDPOINT_STATUS_ACTIVE;
@@ -166,6 +167,8 @@ int aeron_send_channel_endpoint_create(
         return -1;
     }
 
+    _endpoint->on_nak_message = context->log.on_nak_message;
+
     if (NULL != _endpoint->destination_tracker)
     {
         _endpoint->tracker_num_destinations.counter_id = aeron_channel_endpoint_status_allocate(
@@ -214,7 +217,7 @@ int aeron_send_channel_endpoint_create(
         return -1;
     }
 
-    aeron_counter_set_ordered(
+    aeron_counter_set_release(
         _endpoint->local_sockaddr_indicator.value_addr, AERON_COUNTER_CHANNEL_ENDPOINT_STATUS_ACTIVE);
 
     _endpoint->sender_proxy = context->sender_proxy;
@@ -249,7 +252,10 @@ int aeron_send_channel_endpoint_delete(
 
     aeron_int64_to_ptr_hash_map_delete(&endpoint->publication_dispatch_map);
     aeron_udp_channel_delete(endpoint->conductor_fields.udp_channel);
-    endpoint->transport_bindings->close_func(&endpoint->transport);
+    if (endpoint->conductor_fields.status != AERON_SEND_CHANNEL_ENDPOINT_STATUS_CLOSED)
+    {
+        endpoint->transport_bindings->close_func(&endpoint->transport);
+    }
 
     if (NULL != endpoint->port_manager)
     {
@@ -267,22 +273,41 @@ int aeron_send_channel_endpoint_delete(
     return 0;
 }
 
-void aeron_send_channel_endpoint_incref(void *clientd)
+int aeron_send_channel_endpoint_close(aeron_send_channel_endpoint_t *endpoint)
 {
-    aeron_send_channel_endpoint_t *endpoint = (aeron_send_channel_endpoint_t *)clientd;
+    endpoint->transport_bindings->close_func(&endpoint->transport);
+    endpoint->conductor_fields.status = AERON_SEND_CHANNEL_ENDPOINT_STATUS_CLOSED;
 
-    endpoint->conductor_fields.refcnt++;
+    return 0;
 }
 
-void aeron_send_channel_endpoint_decref(void *clientd)
+void aeron_send_channel_endpoint_handle_managed_resource_event(aeron_driver_managed_resource_event_t event, void *clientd)
 {
     aeron_send_channel_endpoint_t *endpoint = (aeron_send_channel_endpoint_t *)clientd;
 
-    if (0 == --endpoint->conductor_fields.refcnt)
+    switch(event)
     {
-        /* mark as CLOSING to be aware not to use again (to be receiver_released and deleted) */
-        endpoint->conductor_fields.status = AERON_SEND_CHANNEL_ENDPOINT_STATUS_CLOSING;
-        aeron_driver_sender_proxy_on_remove_endpoint(endpoint->sender_proxy, endpoint);
+        case AERON_DRIVER_MANAGED_RESOURCE_EVENT_INCREF:
+        {
+            endpoint->conductor_fields.refcnt++;
+            break;
+        }
+
+        case AERON_DRIVER_MANAGED_RESOURCE_EVENT_DECREF:
+        {
+            if (0 == --endpoint->conductor_fields.refcnt)
+            {
+                /* mark as CLOSING to be aware not to use again (to be receiver_released and deleted) */
+                endpoint->conductor_fields.status = AERON_SEND_CHANNEL_ENDPOINT_STATUS_CLOSING;
+                aeron_driver_sender_proxy_on_remove_endpoint(endpoint->sender_proxy, endpoint);
+            }
+            break;
+        }
+
+        case AERON_DRIVER_MANAGED_RESOURCE_EVENT_REVOKE:
+        {
+            break;
+        }
     }
 }
 
@@ -394,11 +419,11 @@ void aeron_send_channel_endpoint_dispatch(
             if (length >= sizeof(aeron_nak_header_t))
             {
                 result = aeron_send_channel_endpoint_on_nak(endpoint, buffer, length, addr);
-                aeron_counter_ordered_increment(sender->nak_messages_received_counter, 1);
+                aeron_counter_increment_release(sender->nak_messages_received_counter);
             }
             else
             {
-                aeron_counter_increment(sender->invalid_frames_counter, 1);
+                aeron_counter_increment(sender->invalid_frames_counter);
             }
             break;
 
@@ -406,11 +431,11 @@ void aeron_send_channel_endpoint_dispatch(
             if (length >= sizeof(aeron_status_message_header_t) && length >= (size_t)frame_header->frame_length)
             {
                 result = aeron_send_channel_endpoint_on_status_message(endpoint, conductor_proxy, buffer, length, addr);
-                aeron_counter_ordered_increment(sender->status_messages_received_counter, 1);
+                aeron_counter_increment_release(sender->status_messages_received_counter);
             }
             else
             {
-                aeron_counter_increment(sender->invalid_frames_counter, 1);
+                aeron_counter_increment(sender->invalid_frames_counter);
             }
             break;
 
@@ -418,11 +443,11 @@ void aeron_send_channel_endpoint_dispatch(
             if (length >= sizeof(aeron_error_t) && length >= (size_t)frame_header->frame_length)
             {
                 result = aeron_send_channel_endpoint_on_error(endpoint, conductor_proxy, buffer, length, addr);
-                aeron_counter_ordered_increment(sender->error_messages_received_counter, 1);
+                aeron_counter_increment_release(sender->error_messages_received_counter);
             }
             else
             {
-                aeron_counter_increment(sender->invalid_frames_counter, 1);
+                aeron_counter_increment(sender->invalid_frames_counter);
             }
             break;
 
@@ -433,7 +458,7 @@ void aeron_send_channel_endpoint_dispatch(
             }
             else
             {
-                aeron_counter_increment(sender->invalid_frames_counter, 1);
+                aeron_counter_increment(sender->invalid_frames_counter);
             }
             break;
 
@@ -444,7 +469,7 @@ void aeron_send_channel_endpoint_dispatch(
             }
             else
             {
-                aeron_counter_increment(sender->invalid_frames_counter, 1);
+                aeron_counter_increment(sender->invalid_frames_counter);
             }
             break;
 
@@ -476,6 +501,20 @@ int aeron_send_channel_endpoint_on_nak(
         }
 
         return result;
+    }
+
+    aeron_driver_nak_message_func_t on_nak_message = endpoint->on_nak_message;
+    if (NULL != on_nak_message)
+    {
+        on_nak_message(
+            addr,
+            nak_header->session_id,
+            nak_header->stream_id,
+            nak_header->term_id,
+            nak_header->term_offset,
+            nak_header->length,
+            endpoint->conductor_fields.udp_channel->uri_length,
+            endpoint->conductor_fields.udp_channel->original_uri);
     }
 
     // we got a NAK for a publication that doesn't exist...
@@ -633,6 +672,21 @@ int aeron_send_channel_endpoint_resolution_change(
             AERON_APPEND_ERR("failed to reconnect transport with re-resolved address: %s", addr_str);
             return -1;
         }
+    }
+
+    return 0;
+}
+
+int aeron_send_channel_endpoint_matches_tag(
+    aeron_send_channel_endpoint_t *endpoint,
+    aeron_udp_channel_t *channel,
+    bool *has_match)
+{
+    if (aeron_udp_channel_matches_tag(
+        channel, endpoint->conductor_fields.udp_channel, NULL, &endpoint->current_data_addr, has_match) < 0)
+    {
+        AERON_APPEND_ERR("%s", "");
+        return -1;
     }
 
     return 0;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -272,7 +272,7 @@ public class ReceiveChannelEndpoint extends ReceiveChannelEndpointRhsPadding
             updateLocalSocketAddress(bindAddressAndPort);
         }
 
-        statusIndicator.setOrdered(ChannelEndpointStatus.ACTIVE);
+        statusIndicator.setRelease(ChannelEndpointStatus.ACTIVE);
     }
 
     /**
@@ -298,7 +298,7 @@ public class ReceiveChannelEndpoint extends ReceiveChannelEndpointRhsPadding
     {
         if (null != multiRcvDestination)
         {
-            multiRcvDestination.closeTransports(poller);
+            multiRcvDestination.closeTransports(this, poller);
         }
     }
 
@@ -348,7 +348,7 @@ public class ReceiveChannelEndpoint extends ReceiveChannelEndpointRhsPadding
      */
     public void possibleTtlAsymmetryEncountered()
     {
-        possibleTtlAsymmetry.incrementOrdered();
+        possibleTtlAsymmetry.incrementRelease();
     }
 
     /**
@@ -619,7 +619,7 @@ public class ReceiveChannelEndpoint extends ReceiveChannelEndpointRhsPadding
      */
     public boolean matchesTag(final UdpChannel udpChannel)
     {
-        return super.udpChannel.matchesTag(udpChannel);
+        return udpChannel.matchesTag(super.udpChannel, currentControlAddress, null);
     }
 
     /**
@@ -929,7 +929,7 @@ public class ReceiveChannelEndpoint extends ReceiveChannelEndpointRhsPadding
     }
 
     /**
-     * Send a response setup message
+     * Send a response setup message.
      *
      * @param controlAddresses  of the sources.
      * @param sessionId         for the image.
@@ -1103,7 +1103,7 @@ public class ReceiveChannelEndpoint extends ReceiveChannelEndpointRhsPadding
         {
             LocalSocketAddressStatus.updateBindAddress(
                 localSocketAddressIndicator, bindAddressAndPort, context.countersMetaDataBuffer());
-            localSocketAddressIndicator.setOrdered(ChannelEndpointStatus.ACTIVE);
+            localSocketAddressIndicator.setRelease(ChannelEndpointStatus.ACTIVE);
         }
     }
 
@@ -1135,6 +1135,7 @@ public class ReceiveChannelEndpoint extends ReceiveChannelEndpointRhsPadding
             ", udpChannel=" + udpChannel +
             ", connectAddress=" + connectAddress +
             ", isClosed=" + isClosed +
+            ", multiRcvDestination=" + multiRcvDestination +
             '}';
     }
 }

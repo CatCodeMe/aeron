@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -92,7 +92,7 @@ public final class SimpleAuthenticator implements Authenticator
     }
 
     /**
-     * Builder to create instances of SimpleAuthenticator
+     * Builder to create instances of SimpleAuthenticator.
      */
     public static class Builder
     {
@@ -109,8 +109,8 @@ public final class SimpleAuthenticator implements Authenticator
          *     .newInstance();
          * </pre>
          *
-         * @param encodedPrincipal      principal encoded as a byte array.
-         * @param encodedCredentials    credentials encoded as a byte array.
+         * @param encodedPrincipal   principal encoded as a byte array.
+         * @param encodedCredentials credentials encoded as a byte array.
          * @return this for a fluent API.
          */
         public Builder principal(final byte[] encodedPrincipal, final byte[] encodedCredentials)

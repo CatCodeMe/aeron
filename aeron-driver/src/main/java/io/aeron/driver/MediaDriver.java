@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ import static org.agrona.SystemUtil.loadPropertiesFiles;
 import static org.agrona.concurrent.status.CountersReader.METADATA_LENGTH;
 
 /**
- * Main class for JVM-based media driver
+ * Main class for JVM-based media driver.
  * <p>
  * Usage:
  * <code>
@@ -445,7 +445,7 @@ public final class MediaDriver implements AutoCloseable
         }
 
         private volatile boolean isClosed;
-        private boolean printConfigurationOnStart = Configuration.printConfigurationOnStart();
+        private boolean printConfigurationOnStart = CommonContext.shouldPrintConfigurationOnStart();
         private boolean useWindowsHighResTimer = Configuration.useWindowsHighResTimer();
         private boolean warnIfDirectoryExists = Configuration.warnIfDirExists();
         private boolean dirDeleteOnStart = Configuration.dirDeleteOnStart();
@@ -464,6 +464,7 @@ public final class MediaDriver implements AutoCloseable
         private long publicationConnectionTimeoutNs = Configuration.publicationConnectionTimeoutNs();
         private long publicationLingerTimeoutNs = Configuration.publicationLingerTimeoutNs();
         private long untetheredWindowLimitTimeoutNs = Configuration.untetheredWindowLimitTimeoutNs();
+        private long untetheredLingerTimeoutNs = Configuration.untetheredLingerTimeoutNs();
         private long untetheredRestingTimeoutNs = Configuration.untetheredRestingTimeoutNs();
         private long statusMessageTimeoutNs = Configuration.statusMessageTimeoutNs();
         private long counterFreeToReuseTimeoutNs = Configuration.counterFreeToReuseTimeoutNs();
@@ -473,6 +474,10 @@ public final class MediaDriver implements AutoCloseable
         private long nakUnicastRetryDelayRatio = Configuration.nakUnicastRetryDelayRatio();
         private long nakMulticastMaxBackoffNs = Configuration.nakMulticastMaxBackoffNs();
         private long flowControlReceiverTimeoutNs = Configuration.flowControlReceiverTimeoutNs();
+        private int unicastFlowControlRetransmitReceiverWindowMultiple = Configuration
+            .unicastFlowControlRetransmitReceiverWindowMultiple();
+        private int multicastFlowControlRetransmitReceiverWindowMultiple = Configuration
+            .multicastFlowControlRetransmitReceiverWindowMultiple();
         private long reResolutionCheckIntervalNs = Configuration.reResolutionCheckIntervalNs();
         private long conductorCycleThresholdNs = Configuration.conductorCycleThresholdNs();
         private long senderCycleThresholdNs = Configuration.senderCycleThresholdNs();
@@ -675,9 +680,19 @@ public final class MediaDriver implements AutoCloseable
                 validateInitialWindowLength(initialWindowLength, mtuLength);
                 validateUnblockTimeout(publicationUnblockTimeoutNs(), clientLivenessTimeoutNs(), timerIntervalNs);
                 validateUntetheredTimeouts(untetheredWindowLimitTimeoutNs, untetheredRestingTimeoutNs, timerIntervalNs);
+                validateValueRange(
+                    unicastFlowControlRetransmitReceiverWindowMultiple,
+                    1, Integer.MAX_VALUE,
+                    "unicastFlowControlRetransmitReceiverWindowMultiple"
+                );
+                validateValueRange(
+                    multicastFlowControlRetransmitReceiverWindowMultiple,
+                    1, Integer.MAX_VALUE,
+                    "multicastFControlRetransmitReceiverWindowMultiple"
+                );
 
                 final long cncFileLength = BitUtil.align(
-                    (long)END_OF_METADATA_OFFSET +
+                    (long)META_DATA_LENGTH +
                     conductorBufferLength +
                     toClientsBufferLength +
                     countersMetadataBufferLength(counterValuesBufferLength) +
@@ -692,18 +707,19 @@ public final class MediaDriver implements AutoCloseable
                     cncMetaDataBuffer,
                     conductorBufferLength,
                     toClientsBufferLength,
-                    Configuration.countersMetadataBufferLength(counterValuesBufferLength),
+                    countersMetadataBufferLength(counterValuesBufferLength),
                     counterValuesBufferLength,
                     clientLivenessTimeoutNs,
                     errorBufferLength,
                     epochClock.time(),
-                    SystemUtil.getPid());
+                    SystemUtil.getPid(),
+                    filePageSize);
 
                 concludeCounters();
                 concludeDependantProperties();
                 concludeIdleStrategies();
 
-                systemCounters.get(BYTES_CURRENTLY_MAPPED).setOrdered(cncFileLength + lossReportBufferLength);
+                systemCounters.get(BYTES_CURRENTLY_MAPPED).setRelease(cncFileLength + lossReportBufferLength);
 
                 toDriverCommands.nextCorrelationId();
                 toDriverCommands.consumerHeartbeatTime(epochClock.time());
@@ -775,9 +791,8 @@ public final class MediaDriver implements AutoCloseable
          * Should the driver print its configuration on start to {@link System#out} at the end of {@link #conclude()}.
          *
          * @return true if the configuration should be printed on start.
-         * @see Configuration#PRINT_CONFIGURATION_ON_START_PROP_NAME
+         * @see CommonContext#PRINT_CONFIGURATION_ON_START_PROP_NAME
          */
-        @Config
         public boolean printConfigurationOnStart()
         {
             return printConfigurationOnStart;
@@ -788,7 +803,7 @@ public final class MediaDriver implements AutoCloseable
          *
          * @param printConfigurationOnStart if the configuration should be printed on start.
          * @return this for a fluent API.
-         * @see Configuration#PRINT_CONFIGURATION_ON_START_PROP_NAME
+         * @see CommonContext#PRINT_CONFIGURATION_ON_START_PROP_NAME
          */
         public Context printConfigurationOnStart(final boolean printConfigurationOnStart)
         {
@@ -1224,6 +1239,33 @@ public final class MediaDriver implements AutoCloseable
         public Context untetheredWindowLimitTimeoutNs(final long timeoutNs)
         {
             this.untetheredWindowLimitTimeoutNs = timeoutNs;
+            return this;
+        }
+
+        /**
+         * The linger timeout for an untethered subscription.
+         *
+         * @return timeout that an untethered subscription will linger.
+         * @see Configuration#UNTETHERED_LINGER_TIMEOUT_PROP_NAME
+         * @since 1.48.0
+         */
+        @Config
+        public long untetheredLingerTimeoutNs()
+        {
+            return untetheredLingerTimeoutNs;
+        }
+
+        /**
+         * The timeout for when an untethered subscription that is outside the window will participate
+         * in local flow control.
+         *
+         * @param timeoutNs that an untethered subscription to linger.
+         * @return this for a fluent API.
+         * @see Configuration#UNTETHERED_LINGER_TIMEOUT_PROP_NAME
+         */
+        public Context untetheredLingerTimeoutNs(final long timeoutNs)
+        {
+            this.untetheredLingerTimeoutNs = timeoutNs;
             return this;
         }
 
@@ -2649,6 +2691,72 @@ public final class MediaDriver implements AutoCloseable
         }
 
         /**
+         * Flow control strategies may limit how much data is sent during a retransmission to
+         * avoid saturating the network and potentially causing more loss. The maximum
+         * retransmission size will be based on a multiple of the receiver window size.
+         * <p>
+         * See @{@link FlowControl#calculateRetransmissionLength(int, int, int, int)}
+         *
+         * @return window size multiple for the unicast strategy.
+         */
+        @Config
+        public int unicastFlowControlRetransmitReceiverWindowMultiple()
+        {
+            return unicastFlowControlRetransmitReceiverWindowMultiple;
+        }
+
+        /**
+         * Flow control strategies may limit how much data is sent during a retransmission to
+         * avoid saturating the network and potentially causing more loss. The maximum
+         * retransmission size will be based on a multiple of the receiver window size.
+         * <p>
+         * See @{@link FlowControl#calculateRetransmissionLength(int, int, int, int)}
+         *
+         * @param unicastFlowControlRetransmitReceiverWindowMultiple window size multiple for the unicast strategy.
+         * @return this for a fluent API.
+         */
+        public Context unicastFlowControlRetransmitReceiverWindowMultiple(
+            final int unicastFlowControlRetransmitReceiverWindowMultiple)
+        {
+            this.unicastFlowControlRetransmitReceiverWindowMultiple =
+                unicastFlowControlRetransmitReceiverWindowMultiple;
+            return this;
+        }
+
+        /**
+         * Flow control strategies may limit how much data is sent during a retransmission to
+         * avoid saturating the network and potentially causing more loss. The maximum
+         * retransmission size will be based on a multiple of the receiver window size.
+         * <p>
+         * See @{@link FlowControl#calculateRetransmissionLength(int, int, int, int)}
+         *
+         * @return window size multiple for multicast strategies.
+         */
+        @Config
+        public int multicastFlowControlRetransmitReceiverWindowMultiple()
+        {
+            return multicastFlowControlRetransmitReceiverWindowMultiple;
+        }
+
+        /**
+         * Flow control strategies may limit how much data is sent during a retransmission to
+         * avoid saturating the network and potentially causing more loss. The maximum
+         * retransmission size will be based on a multiple of the receiver window size.
+         * <p>
+         * See @{@link FlowControl#calculateRetransmissionLength(int, int, int, int)}
+         *
+         * @param multicastFlowControlRetransmitReceiverWindowMultiple window size multiple for multicast strategies.
+         * @return this for a fluent API.
+         */
+        public Context multicastFlowControlRetransmitReceiverWindowMultiple(
+            final int multicastFlowControlRetransmitReceiverWindowMultiple)
+        {
+            this.multicastFlowControlRetransmitReceiverWindowMultiple =
+                multicastFlowControlRetransmitReceiverWindowMultiple;
+            return this;
+        }
+
+        /**
          * Application specific feedback used to identify a receiver group when using a
          * {@link TaggedMulticastFlowControl} strategy which is added to Status Messages (SMs).
          * <p>
@@ -3551,7 +3659,7 @@ public final class MediaDriver implements AutoCloseable
         }
 
         /**
-         * Wildcard port range used for the Sender
+         * Wildcard port range used for the Sender.
          *
          * @return port range as a string in the format "low high".
          */
@@ -3579,7 +3687,7 @@ public final class MediaDriver implements AutoCloseable
         }
 
         /**
-         * Wildcard port range used for the Receiver
+         * Wildcard port range used for the Receiver.
          *
          * @return port range as a string in the format "low high".
          */
@@ -3588,7 +3696,6 @@ public final class MediaDriver implements AutoCloseable
         {
             return receiverWildcardPortRange;
         }
-
 
         /**
          * Set the wildcard port range to be used for the Receiver.
@@ -4073,9 +4180,13 @@ public final class MediaDriver implements AutoCloseable
                 new LinkedBlockingQueue<>(),
                 (r) ->
                 {
-                    final Thread thread = new Thread(
-                        r,
-                        "async-task-executor-" + id.getAndIncrement() + " " + dirName);
+                    String threadName = "async-executor";
+                    if (threadCount > 1)
+                    {
+                        threadName += "-" + id.getAndIncrement();
+                    }
+                    threadName += " " + dirName;
+                    final Thread thread = new Thread(r, threadName);
                     thread.setDaemon(true);
                     return thread;
                 });
@@ -4390,6 +4501,10 @@ public final class MediaDriver implements AutoCloseable
                 "\n    flowControlGroupTag=" + flowControlGroupTag +
                 "\n    flowControlGroupMinSize=" + flowControlGroupMinSize +
                 "\n    flowControlReceiverTimeoutNs=" + flowControlReceiverTimeoutNs +
+                "\n    unicastFlowControlRetransmitReceiverWindowMultiple=" +
+                unicastFlowControlRetransmitReceiverWindowMultiple +
+                "\n    multicastFControlRetransmitReceiverWindowMultiple=" +
+                multicastFlowControlRetransmitReceiverWindowMultiple +
                 "\n    reResolutionCheckIntervalNs=" + reResolutionCheckIntervalNs +
                 "\n    receiverGroupConsideration=" + receiverGroupConsideration +
                 "\n    congestionControlSupplier=" + congestionControlSupplier +

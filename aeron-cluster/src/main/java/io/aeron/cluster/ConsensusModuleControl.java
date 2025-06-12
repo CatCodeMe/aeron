@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -109,4 +109,19 @@ public interface ConsensusModuleControl
      * @return commit position counter id.
      */
     int commitPositionCounterId();
+
+    /**
+     * Numeric id for the cluster (used when running multiple clusters on the same media driver).
+     *
+     * @return numeric id for the cluster.
+     * @see ConsensusModule.Context#clusterId(int)
+     */
+    int clusterId();
+
+    /**
+     * The current cluster member for this node.
+     *
+     * @return cluster member for this node.
+     */
+    ClusterMember clusterMember();
 }

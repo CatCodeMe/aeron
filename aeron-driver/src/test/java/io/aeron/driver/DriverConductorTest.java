@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -379,7 +379,7 @@ class DriverConductorTest
     void shouldBeAbleToRemoveSingleStream()
     {
         final long id = driverProxy.addPublication(CHANNEL_4000, STREAM_ID_1);
-        driverProxy.removePublication(id);
+        driverProxy.removePublication(id, false);
 
         doWorkUntil(() -> (CLIENT_LIVENESS_TIMEOUT_NS + PUBLICATION_LINGER_TIMEOUT_NS * 2) - nanoClock.nanoTime() < 0);
 
@@ -395,10 +395,10 @@ class DriverConductorTest
         final long id3 = driverProxy.addPublication(CHANNEL_4003, STREAM_ID_3);
         final long id4 = driverProxy.addPublication(CHANNEL_4004, STREAM_ID_4);
 
-        driverProxy.removePublication(id1);
-        driverProxy.removePublication(id2);
-        driverProxy.removePublication(id3);
-        driverProxy.removePublication(id4);
+        driverProxy.removePublication(id1, false);
+        driverProxy.removePublication(id2, false);
+        driverProxy.removePublication(id3, false);
+        driverProxy.removePublication(id4, false);
 
         doWorkUntil(
             () -> (CLIENT_LIVENESS_TIMEOUT_NS * 2 + PUBLICATION_LINGER_TIMEOUT_NS * 2) - nanoClock.nanoTime() <= 0);
@@ -478,7 +478,7 @@ class DriverConductorTest
     void shouldErrorOnRemovePublicationOnUnknownRegistrationId()
     {
         final long id = driverProxy.addPublication(CHANNEL_4000, STREAM_ID_1);
-        driverProxy.removePublication(id + 1);
+        driverProxy.removePublication(id + 1, false);
 
         driverConductor.doWork();
         driverConductor.doWork();
@@ -579,11 +579,11 @@ class DriverConductorTest
 
         doWorkUntil(() -> (CLIENT_LIVENESS_TIMEOUT_NS / 2) - nanoClock.nanoTime() <= 0);
 
-        heartbeatCounter.setOrdered(epochClock.time());
+        heartbeatCounter.setRelease(epochClock.time());
 
         doWorkUntil(() -> (CLIENT_LIVENESS_TIMEOUT_NS + 1000) - nanoClock.nanoTime() <= 0);
 
-        heartbeatCounter.setOrdered(epochClock.time());
+        heartbeatCounter.setRelease(epochClock.time());
 
         doWorkUntil(() -> nanoClock.nanoTime() >= CLIENT_LIVENESS_TIMEOUT_NS * 2);
 
@@ -683,11 +683,11 @@ class DriverConductorTest
 
         doWorkUntil(() -> nanoClock.nanoTime() >= CLIENT_LIVENESS_TIMEOUT_NS);
 
-        heartbeatCounter.setOrdered(epochClock.time());
+        heartbeatCounter.setRelease(epochClock.time());
 
         doWorkUntil(() -> nanoClock.nanoTime() >= CLIENT_LIVENESS_TIMEOUT_NS + 1000);
 
-        heartbeatCounter.setOrdered(epochClock.time());
+        heartbeatCounter.setRelease(epochClock.time());
 
         doWorkUntil(() -> nanoClock.nanoTime() >= CLIENT_LIVENESS_TIMEOUT_NS * 2);
 
@@ -700,7 +700,7 @@ class DriverConductorTest
         final InetSocketAddress sourceAddress = new InetSocketAddress("localhost", 4400);
         final int initialTermId = 1;
         final int activeTermId = 2;
-        final int termOffset = 100;
+        final int termOffset = 160;
 
         driverProxy.addSubscription(CHANNEL_4000, STREAM_ID_1);
 
@@ -863,7 +863,7 @@ class DriverConductorTest
         doWorkUntil(() -> nanoClock.nanoTime() >= imageLivenessTimeoutNs() / 2);
 
         final AtomicCounter heartbeatCounter = clientHeartbeatCounter(spyCountersManager);
-        heartbeatCounter.setOrdered(epochClock.time());
+        heartbeatCounter.setRelease(epochClock.time());
 
         doWorkUntil(() -> nanoClock.nanoTime() >= imageLivenessTimeoutNs() + 1000);
 
@@ -931,7 +931,7 @@ class DriverConductorTest
         final IpcPublication ipcPublicationOne = driverConductor.getSharedIpcPublication(STREAM_ID_1);
         assertNotNull(ipcPublicationOne);
 
-        final long idPubOneRemove = driverProxy.removePublication(idPubOne);
+        final long idPubOneRemove = driverProxy.removePublication(idPubOne, false);
         driverConductor.doWork();
 
         final long idPubTwo = driverProxy.addPublication(CHANNEL_IPC, STREAM_ID_1);
@@ -980,7 +980,7 @@ class DriverConductorTest
     void shouldBeAbleToAddAndRemoveIpcPublication()
     {
         final long idAdd = driverProxy.addPublication(CHANNEL_IPC, STREAM_ID_1);
-        driverProxy.removePublication(idAdd);
+        driverProxy.removePublication(idAdd, false);
 
         doWorkUntil(() -> nanoClock.nanoTime() >= CLIENT_LIVENESS_TIMEOUT_NS);
 
@@ -1005,14 +1005,14 @@ class DriverConductorTest
     {
         final long idAdd1 = driverProxy.addPublication(CHANNEL_IPC, STREAM_ID_1);
         final long idAdd2 = driverProxy.addPublication(CHANNEL_IPC, STREAM_ID_1);
-        driverProxy.removePublication(idAdd1);
+        driverProxy.removePublication(idAdd1, false);
 
         driverConductor.doWork();
 
         IpcPublication ipcPublication = driverConductor.getSharedIpcPublication(STREAM_ID_1);
         assertNotNull(ipcPublication);
 
-        driverProxy.removePublication(idAdd2);
+        driverProxy.removePublication(idAdd2, false);
 
         doWorkUntil(() -> CLIENT_LIVENESS_TIMEOUT_NS - nanoClock.nanoTime() <= 0);
 
@@ -1034,7 +1034,7 @@ class DriverConductorTest
         IpcPublication ipcPublication = driverConductor.getSharedIpcPublication(STREAM_ID_1);
         assertNotNull(ipcPublication);
 
-        driverProxy.removePublication(idAdd2);
+        driverProxy.removePublication(idAdd2, false);
 
         doWorkUntil(() -> CLIENT_LIVENESS_TIMEOUT_NS - nanoClock.nanoTime() <= 0);
 
@@ -1071,7 +1071,7 @@ class DriverConductorTest
         doWorkUntil(() -> CLIENT_LIVENESS_TIMEOUT_NS - nanoClock.nanoTime() <= 0);
 
         final AtomicCounter heartbeatCounter = clientHeartbeatCounter(spyCountersManager);
-        heartbeatCounter.setOrdered(epochClock.time());
+        heartbeatCounter.setRelease(epochClock.time());
 
         doWorkUntil(() -> CLIENT_LIVENESS_TIMEOUT_NS - nanoClock.nanoTime() <= 0);
 
@@ -1195,7 +1195,7 @@ class DriverConductorTest
         doWorkUntil(() -> CLIENT_LIVENESS_TIMEOUT_NS - nanoClock.nanoTime() <= 0);
 
         final AtomicCounter heartbeatCounter = clientHeartbeatCounter(spyCountersManager);
-        heartbeatCounter.setOrdered(epochClock.time());
+        heartbeatCounter.setRelease(epochClock.time());
 
         doWorkUntil(() -> CLIENT_LIVENESS_TIMEOUT_NS - nanoClock.nanoTime() <= 0);
 
@@ -1220,11 +1220,11 @@ class DriverConductorTest
 
         doWorkUntil(() -> (CLIENT_LIVENESS_TIMEOUT_NS / 2) - nanoClock.nanoTime() <= 0);
 
-        heartbeatCounter.setOrdered(epochClock.time());
+        heartbeatCounter.setRelease(epochClock.time());
 
         doWorkUntil(() -> (CLIENT_LIVENESS_TIMEOUT_NS + 1000) - nanoClock.nanoTime() <= 0);
 
-        heartbeatCounter.setOrdered(0);
+        heartbeatCounter.setRelease(0);
 
         doWorkUntil(() -> (CLIENT_LIVENESS_TIMEOUT_NS * 2) - nanoClock.nanoTime() <= 0);
 
@@ -1237,8 +1237,8 @@ class DriverConductorTest
     {
         final long id1 = driverProxy.addPublication(CHANNEL_4000, STREAM_ID_1);
         final long id2 = driverProxy.addPublication(CHANNEL_4000, STREAM_ID_2);
-        driverProxy.removePublication(id1);
-        driverProxy.removePublication(id2);
+        driverProxy.removePublication(id1, false);
+        driverProxy.removePublication(id2, false);
 
         doWorkUntil(() -> (PUBLICATION_LINGER_TIMEOUT_NS * 2) - nanoClock.nanoTime() <= 0);
 
@@ -1431,7 +1431,7 @@ class DriverConductorTest
 
         doWorkUntil(() ->
         {
-            heartbeatCounter.setOrdered(epochClock.time());
+            heartbeatCounter.setRelease(epochClock.time());
             return (CLIENT_LIVENESS_TIMEOUT_NS * 2) - nanoClock.nanoTime() <= 0;
         });
 
@@ -1754,8 +1754,8 @@ class DriverConductorTest
         verify(senderProxy).registerSendChannelEndpoint(any());
         verify(senderProxy).newNetworkPublication(any());
 
-        driverProxy.removePublication(id1);
-        driverProxy.removePublication(id2);
+        driverProxy.removePublication(id1, false);
+        driverProxy.removePublication(id2, false);
 
         doWorkUntil(
             () -> (PUBLICATION_LINGER_TIMEOUT_NS * 2 + CLIENT_LIVENESS_TIMEOUT_NS * 2) - nanoClock.nanoTime() <= 0);
@@ -1776,8 +1776,8 @@ class DriverConductorTest
         verify(senderProxy).registerSendChannelEndpoint(any());
         verify(senderProxy, times(2)).newNetworkPublication(any());
 
-        driverProxy.removePublication(id1);
-        driverProxy.removePublication(id2);
+        driverProxy.removePublication(id1, false);
+        driverProxy.removePublication(id2, false);
 
         doWorkUntil(
             () -> (PUBLICATION_LINGER_TIMEOUT_NS * 2 + CLIENT_LIVENESS_TIMEOUT_NS * 2) - nanoClock.nanoTime() <= 0);
@@ -2055,12 +2055,12 @@ class DriverConductorTest
 
     private static AtomicCounter clientHeartbeatCounter(final CountersReader countersReader)
     {
-        for (int i = 0, size = countersReader.maxCounterId(); i < size; i++)
+        for (int counterId = 0, maxId = countersReader.maxCounterId(); counterId <= maxId; counterId++)
         {
-            final int counterState = countersReader.getCounterState(i);
-            if (counterState == RECORD_ALLOCATED && countersReader.getCounterTypeId(i) == HEARTBEAT_TYPE_ID)
+            final int counterState = countersReader.getCounterState(counterId);
+            if (counterState == RECORD_ALLOCATED && countersReader.getCounterTypeId(counterId) == HEARTBEAT_TYPE_ID)
             {
-                return new AtomicCounter(countersReader.valuesBuffer(), i);
+                return new AtomicCounter(countersReader.valuesBuffer(), counterId);
             }
             else if (RECORD_UNUSED == counterState)
             {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,14 @@
  */
 package io.aeron.samples.archive;
 
+import io.aeron.Aeron;
 import io.aeron.Image;
 import io.aeron.Subscription;
+import io.aeron.archive.client.AeronArchive;
 
 /**
  * Class that collects the parameters of the <code>RecordingDescriptor Consumer</code> callback for use with the
- * <code>RecordingDescriptorCollector</code>
+ * <code>RecordingDescriptorCollector</code>.
  *
  * @see io.aeron.archive.client.RecordingDescriptorConsumer
  * @see RecordingDescriptorCollector
@@ -47,13 +49,13 @@ public class RecordingDescriptor
 
     RecordingDescriptor reset()
     {
-        this.controlSessionId = 0;
-        this.correlationId = 0;
-        this.recordingId = 0;
-        this.startTimestamp = 0;
-        this.stopTimestamp = 0;
-        this.startPosition = 0;
-        this.stopPosition = 0;
+        this.controlSessionId = Aeron.NULL_VALUE;
+        this.correlationId = Aeron.NULL_VALUE;
+        this.recordingId = Aeron.NULL_VALUE;
+        this.startTimestamp = AeronArchive.NULL_TIMESTAMP;
+        this.stopTimestamp = AeronArchive.NULL_TIMESTAMP;
+        this.startPosition = AeronArchive.NULL_POSITION;
+        this.stopPosition = AeronArchive.NULL_POSITION;
         this.initialTermId = 0;
         this.segmentFileLength = 0;
         this.termBufferLength = 0;
@@ -156,7 +158,7 @@ public class RecordingDescriptor
     }
 
     /**
-     * startPosition of the recording against the recorded publication, the {@link Image#joinPosition()}
+     * startPosition of the recording against the recorded publication, the {@link Image#joinPosition()}.
      *
      * @return startPosition
      */
@@ -237,6 +239,7 @@ public class RecordingDescriptor
 
     /**
      * strippedChannel of the recorded stream which is used for the recording subscription in the archive.
+     *
      * @return strippedChannel
      */
     public String strippedChannel()

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -118,7 +118,7 @@ public enum DriverEventCode implements EventCode
      */
     CMD_OUT_EXCLUSIVE_PUBLICATION_READY(33, DriverEventDissector::dissectCommand),
     /**
-     * Error response
+     * Error response.
      */
     CMD_OUT_ERROR(34, DriverEventDissector::dissectCommand),
     /**
@@ -201,11 +201,12 @@ public enum DriverEventCode implements EventCode
      */
     NAME_RESOLUTION_HOST_NAME(53,
         (code, buffer, offset, builder) -> DriverEventDissector.dissectHostName(buffer, offset, builder)),
+
     /**
-     * Nak received.
+     * Nak sent.
      */
-    SEND_NAK_MESSAGE(54,
-        (code, buffer, offset, builder) -> DriverEventDissector.dissectSendNak(buffer, offset, builder)),
+    NAK_SENT(54, DriverEventDissector::dissectNak),
+
     /**
      * Resend data upon Nak.
      */
@@ -213,14 +214,31 @@ public enum DriverEventCode implements EventCode
         (code, buffer, offset, builder) -> DriverEventDissector.dissectResend(buffer, offset, builder)),
 
     /**
-     * Remove destination by id
+     * Remove destination by id.
      */
     CMD_IN_REMOVE_DESTINATION_BY_ID(56, DriverEventDissector::dissectCommand),
 
     /**
      * Reject image command received by the driver.
      */
-    CMD_IN_REJECT_IMAGE(57, DriverEventDissector::dissectCommand);
+    CMD_IN_REJECT_IMAGE(57, DriverEventDissector::dissectCommand),
+
+    /**
+     * Nak received.
+     */
+    NAK_RECEIVED(58, DriverEventDissector::dissectNak),
+
+    /**
+     * Publication revoked.
+     */
+    PUBLICATION_REVOKE(59,
+        (code, buffer, offset, builder) -> DriverEventDissector.dissectPublicationRevoke(buffer, offset, builder)),
+
+    /**
+     * Publication Image revoked.
+     */
+    PUBLICATION_IMAGE_REVOKE(60,
+        (code, buffer, offset, builder) -> DriverEventDissector.dissectPublicationImageRevoke(buffer, offset, builder));
 
     static final int EVENT_CODE_TYPE = EventCodeType.DRIVER.getTypeCode();
 
@@ -276,6 +294,18 @@ public enum DriverEventCode implements EventCode
         }
 
         return code;
+    }
+
+    static DriverEventCode get(final String name)
+    {
+        if ("SEND_NAK_MESSAGE".equals(name))
+        {
+            return NAK_SENT;
+        }
+        else
+        {
+            return DriverEventCode.valueOf(name);
+        }
     }
 
     /**

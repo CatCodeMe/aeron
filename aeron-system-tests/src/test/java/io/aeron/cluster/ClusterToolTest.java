@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -245,7 +245,7 @@ class ClusterToolTest
         try (RecordingLog recordingLog = new RecordingLog(clusterDir, true))
         {
             recordingLog.appendTerm(21, 0, 100, 100);
-            recordingLog.appendSnapshot(0, 0, 0, 0, 200, 0);
+            recordingLog.appendSnapshot(0, 0, 100, 0, 200, 0);
             recordingLog.appendTerm(21, 1, 1024, 200);
         }
 

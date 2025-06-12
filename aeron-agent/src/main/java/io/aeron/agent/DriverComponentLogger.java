@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -90,6 +90,8 @@ public class DriverComponentLogger implements ComponentLogger
 
         tempBuilder = addDriverFlowControlInstrumentation(tempBuilder);
 
+        tempBuilder = addPublicationRevokeInstrumentation(tempBuilder);
+
         return tempBuilder;
     }
 
@@ -108,7 +110,7 @@ public class DriverComponentLogger implements ComponentLogger
             enabledEventCodes,
             SPECIAL_EVENTS,
             DriverEventCode::get,
-            DriverEventCode::valueOf);
+            DriverEventCode::get);
     }
 
     private static AgentBuilder addDriverConductorInstrumentation(final AgentBuilder agentBuilder)
@@ -238,10 +240,17 @@ public class DriverComponentLogger implements ComponentLogger
 
         tempBuilder = addEventInstrumentation(
             tempBuilder,
-            SEND_NAK_MESSAGE,
+            NAK_SENT,
             "ReceiveChannelEndpoint",
-            ChannelEndpointInterceptor.ReceiveChannelEndpointInterceptor.SendNakMessage.class,
+            ChannelEndpointInterceptor.ReceiveChannelEndpointInterceptor.NakSent.class,
             "sendNakMessage");
+
+        tempBuilder = addEventInstrumentation(
+            tempBuilder,
+            NAK_RECEIVED,
+            "SendChannelEndpoint",
+            ChannelEndpointInterceptor.SendChannelEndpointInterceptor.NakReceived.class,
+            "onNakMessage");
 
         return tempBuilder;
     }
@@ -304,6 +313,33 @@ public class DriverComponentLogger implements ComponentLogger
             "AbstractMinMulticastFlowControl",
             DriverInterceptor.FlowControl.ReceiverRemoved.class,
             "receiverRemoved");
+
+        return tempBuilder;
+    }
+
+    private static AgentBuilder addPublicationRevokeInstrumentation(final AgentBuilder agentBuilder)
+    {
+        AgentBuilder tempBuilder = agentBuilder;
+        tempBuilder = addEventInstrumentation(
+            tempBuilder,
+            PUBLICATION_REVOKE,
+            "NetworkPublication",
+            DriverInterceptor.Revoke.PublicationRevoke.class,
+            "logRevoke");
+
+        tempBuilder = addEventInstrumentation(
+            tempBuilder,
+            PUBLICATION_REVOKE,
+            "IpcPublication",
+            DriverInterceptor.Revoke.PublicationRevoke.class,
+            "logRevoke");
+
+        tempBuilder = addEventInstrumentation(
+            tempBuilder,
+            PUBLICATION_IMAGE_REVOKE,
+            "PublicationImage",
+            DriverInterceptor.Revoke.PublicationImageRevoke.class,
+            "logRevoke");
 
         return tempBuilder;
     }

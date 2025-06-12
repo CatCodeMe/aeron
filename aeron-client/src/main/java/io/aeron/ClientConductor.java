@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -600,7 +600,8 @@ final class ClientConductor implements Agent
                 {
                     releaseLogBuffers(
                         publication.logBuffers(), publication.originalRegistrationId(), EXPLICIT_CLOSE_LINGER_NS);
-                    asyncCommandIdSet.add(driverProxy.removePublication(publication.registrationId()));
+                    asyncCommandIdSet.add(
+                        driverProxy.removePublication(publication.registrationId(), publication.revokeOnClose));
                 }
             }
         }
@@ -630,17 +631,20 @@ final class ClientConductor implements Agent
             }
 
             final Publication publication = (Publication)resource;
+            boolean revokeOnClose = false;
             if (null != publication)
             {
                 resourceByRegIdMap.remove(publicationRegistrationId);
                 publication.internalClose();
                 releaseLogBuffers(
                     publication.logBuffers(), publication.originalRegistrationId(), EXPLICIT_CLOSE_LINGER_NS);
+                revokeOnClose = publication.revokeOnClose;
             }
 
             if (asyncCommandIdSet.remove(publicationRegistrationId) || null != publication)
             {
-                asyncCommandIdSet.add(driverProxy.removePublication(publicationRegistrationId));
+                asyncCommandIdSet.add(
+                    driverProxy.removePublication(publicationRegistrationId, revokeOnClose));
                 stashedChannelByRegistrationId.remove(publicationRegistrationId);
             }
         }
@@ -1447,8 +1451,6 @@ final class ClientConductor implements Agent
             ensureActive();
             ensureNotReentrant();
 
-            // TODO, check reason length??
-
             final long registrationId = driverProxy.rejectImage(correlationId, position, reason);
             awaitResponse(registrationId);
         }
@@ -1650,7 +1652,7 @@ final class ClientConductor implements Agent
                     try
                     {
                         heartbeatTimestamp = new AtomicCounter(counterValuesBuffer, counterId);
-                        heartbeatTimestamp.setOrdered(nowMs);
+                        heartbeatTimestamp.setRelease(nowMs);
                         AeronCounters.appendToLabel(
                             countersReader.metaDataBuffer(),
                             counterId,
@@ -1674,7 +1676,7 @@ final class ClientConductor implements Agent
                     throw new AeronException("unexpected close of heartbeat timestamp counter: " + counterId);
                 }
 
-                heartbeatTimestamp.setOrdered(nowMs);
+                heartbeatTimestamp.setRelease(nowMs);
                 timeOfLastKeepAliveNs = nowNs;
             }
 

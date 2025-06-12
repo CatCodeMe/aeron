@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1268,17 +1268,19 @@ int aeron_exclusive_publication_async_remove_destination_by_id(
 int aeron_exclusive_publication_async_destination_poll(aeron_async_destination_t *async);
 
 /**
- * Asynchronously close the publication. Will callback on the on_complete notification when the subscription is closed.
+ * Asynchronously close the publication. Will callback on the on_complete notification when the publication is closed.
  * The callback is optional, use NULL for the on_complete callback if not required.
  *
  * @param publication to close
- * @param on_close_complete optional callback to execute once the subscription has been closed and freed. This may
+ * @param on_close_complete optional callback to execute once the publication has been closed and freed. This may
  * happen on a separate thread, so the caller should ensure that clientd has the appropriate lifetime.
  * @param on_close_complete_clientd parameter to pass to the on_complete callback.
  * @return 0 for success or -1 for error.
  */
 int aeron_publication_close(
-    aeron_publication_t *publication, aeron_notification_t on_close_complete, void *on_close_complete_clientd);
+    aeron_publication_t *publication,
+    aeron_notification_t on_close_complete,
+    void *on_close_complete_clientd);
 
 /**
  * Get the publication's channel
@@ -1444,6 +1446,28 @@ int64_t aeron_exclusive_publication_position_limit(aeron_exclusive_publication_t
  * @return 0 for success or -1 for error.
  */
 int aeron_exclusive_publication_close(
+    aeron_exclusive_publication_t *publication,
+    aeron_notification_t on_close_complete,
+    void *on_close_complete_clientd);
+
+/**
+ * Revoke this publication when it's closed.
+ *
+ * @param publication to revoke on close
+ */
+void aeron_exclusive_publication_revoke_on_close(aeron_exclusive_publication_t *publication);
+
+/**
+ * Asynchronously revoke and close the publication. Will callback on the on_complete notification when the publicaiton is closed.
+ * The callback is optional, use NULL for the on_complete callback if not required.
+ *
+ * @param publication to revoke and close
+ * @param on_close_complete optional callback to execute once the publication has been revoked, closed and freed. This may
+ * happen on a separate thread, so the caller should ensure that clientd has the appropriate lifetime.
+ * @param on_close_complete_clientd parameter to pass to the on_complete callback.
+ * @return 0 for success or -1 for error.
+ */
+int aeron_exclusive_publication_revoke(
     aeron_exclusive_publication_t *publication,
     aeron_notification_t on_close_complete,
     void *on_close_complete_clientd);
@@ -2011,6 +2035,14 @@ int64_t aeron_image_end_of_stream_position(aeron_image_t *image);
 int aeron_image_active_transport_count(aeron_image_t *image);
 
 /**
+ * Was the associated publication revoked?
+ *
+ * @param image to check
+ * @return true if the associated publication was revoked.
+ */
+bool aeron_image_is_publication_revoked(aeron_image_t *image);
+
+/**
  * Poll for new messages in a stream. If new messages are found beyond the last consumed position then they
  * will be delivered to the handler up to a limited number of fragments as specified.
  * <p>
@@ -2122,12 +2154,6 @@ int aeron_image_block_poll(
 
 bool aeron_image_is_closed(aeron_image_t *image);
 
-/**
- * Force the driver to disconnect this image from the remote publication.
- *
- * @param image to be rejected.
- * @param reason an error message to be forwarded back to the publication.
- */
 int aeron_image_reject(aeron_image_t *image, const char *reason);
 
 /**
@@ -2531,6 +2557,7 @@ typedef struct aeron_cnc_constants_stct
     int64_t client_liveness_timeout;
     int64_t start_timestamp;
     int64_t pid;
+    int32_t file_page_size;
 }
 aeron_cnc_constants_t;
 #pragma pack(pop)

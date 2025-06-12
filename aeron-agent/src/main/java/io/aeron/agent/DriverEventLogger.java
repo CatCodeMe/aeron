@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ public final class DriverEventLogger
     public static final int MAX_HOST_NAME_LENGTH = 256;
 
     /**
-     * Maximum length of a Channel URI
+     * Maximum length of a Channel URI.
      */
     public static final int MAX_CHANNEL_URI_LENGTH = 4096;
 
@@ -390,9 +390,9 @@ public final class DriverEventLogger
      *
      * @param resolverName simple class name of the resolver
      * @param durationNs   of the call in nanoseconds.
-     * @param name         host name being resolved
-     * @param isReLookup   address that was resolved to, can be null
-     * @param resolvedName address that was resolved to, can be null
+     * @param name         host name being resolved.
+     * @param isReLookup   address that was resolved to, can be null.
+     * @param resolvedName address that was resolved to, can be null.
      */
     public void logLookup(
         final String resolverName,
@@ -511,18 +511,20 @@ public final class DriverEventLogger
     }
 
     /**
-     * Logs a NAK message sent by the receiver for a single control address.
+     * Logs a NAK message sent by the receiver for a single control address or received by the sender.
      *
-     * @param controlAddress Nak UDP destination
-     * @param sessionId      of the Nak.
-     * @param streamId       of the Nak.
-     * @param termId         of the Nak.
-     * @param termOffset     of the Nak.
-     * @param nakLength      of the Nak.
-     * @param channel        of the Nak.
+     * @param eventCode  to log Nak by.
+     * @param address    Nak UDP destination/source.
+     * @param sessionId  of the Nak.
+     * @param streamId   of the Nak.
+     * @param termId     of the Nak.
+     * @param termOffset of the Nak.
+     * @param nakLength  of the Nak.
+     * @param channel    of the Nak.
      */
-    public void logSendNakMessage(
-        final InetSocketAddress controlAddress,
+    public void logNakMessage(
+        final DriverEventCode eventCode,
+        final InetSocketAddress address,
         final int sessionId,
         final int streamId,
         final int termId,
@@ -530,22 +532,22 @@ public final class DriverEventLogger
         final int nakLength,
         final String channel)
     {
-        final int length = socketAddressLength(controlAddress) + (SIZE_OF_INT * 6) + channel.length();
+        final int length = socketAddressLength(address) + (SIZE_OF_INT * 6) + channel.length();
         final int captureLength = captureLength(length);
         final int encodedLength = encodedLength(captureLength);
 
         final ManyToOneRingBuffer ringBuffer = this.ringBuffer;
-        final int index = ringBuffer.tryClaim(toEventCodeId(SEND_NAK_MESSAGE), encodedLength);
+        final int index = ringBuffer.tryClaim(toEventCodeId(eventCode), encodedLength);
         if (index > 0)
         {
             try
             {
-                encodeSendNakMessage(
+                encodeNakMessage(
                     (UnsafeBuffer)ringBuffer.buffer(),
                     index,
                     captureLength,
                     length,
-                    controlAddress,
+                    address,
                     sessionId,
                     streamId,
                     termId,
@@ -598,6 +600,88 @@ public final class DriverEventLogger
                     termId,
                     termOffset,
                     resendLength,
+                    channel);
+            }
+            finally
+            {
+                ringBuffer.commit(index);
+            }
+        }
+    }
+
+    /**
+     * Logs a publication being revoked.
+     *
+     * @param revokedPos of the PublicationRevoke
+     * @param sessionId  of the PublicationRevoke
+     * @param streamId   of the PublicationRevoke
+     * @param channel    of the PublicationRevoke
+     */
+    public void logPublicationRevoke(
+        final long revokedPos,
+        final int sessionId,
+        final int streamId,
+        final String channel)
+    {
+        final int length = SIZE_OF_LONG + (SIZE_OF_INT * 3) + channel.length();
+        final int captureLength = captureLength(length);
+        final int encodedLength = encodedLength(captureLength);
+
+        final ManyToOneRingBuffer ringBuffer = this.ringBuffer;
+        final int index = ringBuffer.tryClaim(toEventCodeId(PUBLICATION_REVOKE), encodedLength);
+        if (index > 0)
+        {
+            try
+            {
+                encodePublicationRevoke(
+                    (UnsafeBuffer)ringBuffer.buffer(),
+                    index,
+                    captureLength,
+                    length,
+                    revokedPos,
+                    sessionId,
+                    streamId,
+                    channel);
+            }
+            finally
+            {
+                ringBuffer.commit(index);
+            }
+        }
+    }
+
+    /**
+     * Logs a publication image being revoked.
+     *
+     * @param revokedPos of the PublicationImageRevoke
+     * @param sessionId  of the PublicationImageRevoke
+     * @param streamId   of the PublicationImageRevoke
+     * @param channel    of the PublicationImageRevoke
+     */
+    public void logPublicationImageRevoke(
+        final long revokedPos,
+        final int sessionId,
+        final int streamId,
+        final String channel)
+    {
+        final int length = SIZE_OF_LONG + (SIZE_OF_INT * 3) + channel.length();
+        final int captureLength = captureLength(length);
+        final int encodedLength = encodedLength(captureLength);
+
+        final ManyToOneRingBuffer ringBuffer = this.ringBuffer;
+        final int index = ringBuffer.tryClaim(toEventCodeId(PUBLICATION_IMAGE_REVOKE), encodedLength);
+        if (index > 0)
+        {
+            try
+            {
+                encodePublicationImageRevoke(
+                    (UnsafeBuffer)ringBuffer.buffer(),
+                    index,
+                    captureLength,
+                    length,
+                    revokedPos,
+                    sessionId,
+                    streamId,
                     channel);
             }
             finally

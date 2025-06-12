@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -168,7 +168,7 @@ int aeron_driver_receiver_do_work(void *clientd)
 
     work_count += (int)bytes_received;
 
-    aeron_counter_add_ordered(receiver->total_bytes_received_counter, bytes_received);
+    aeron_counter_get_and_add_release(receiver->total_bytes_received_counter, bytes_received);
 
     for (size_t i = 0, length = receiver->images.length; i < length; i++)
     {
@@ -598,7 +598,7 @@ void aeron_driver_receiver_on_resolution_change(void *clientd, void *item)
             pending_setup->is_periodic)
         {
             memcpy(&pending_setup->control_addr, &cmd->new_addr, sizeof(pending_setup->control_addr));
-            aeron_counter_add_ordered(receiver->resolution_changes_counter, 1);
+            aeron_counter_get_and_add_release(receiver->resolution_changes_counter, 1);
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -150,8 +150,8 @@ bool aeron_archive_proxy_try_connect(
         strlen(control_response_channel));
     aeron_archive_client_authConnectRequest_put_encodedCredentials(
         &codec,
-        encoded_credentials->data,
-        encoded_credentials->length);
+        NULL == encoded_credentials ? "" : encoded_credentials->data,
+        NULL == encoded_credentials ? 0 : encoded_credentials->length);
 
     return aeron_archive_proxy_offer_once(
         archive_proxy,
@@ -197,8 +197,8 @@ bool aeron_archive_proxy_challenge_response(
     aeron_archive_client_challengeResponse_set_correlationId(&codec, correlation_id);
     aeron_archive_client_challengeResponse_put_encodedCredentials(
         &codec,
-        encoded_credentials->data,
-        encoded_credentials->length);
+        NULL == encoded_credentials ? "" : encoded_credentials->data,
+        NULL == encoded_credentials ? 0 : encoded_credentials->length);
 
     return aeron_archive_proxy_offer_once(
         archive_proxy,

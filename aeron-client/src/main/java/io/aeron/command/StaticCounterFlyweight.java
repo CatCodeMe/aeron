@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -96,9 +96,9 @@ public class StaticCounterFlyweight
     }
 
     /**
-     * Set counter id field
+     * Set counter id field.
      *
-     * @param counterId field value
+     * @param counterId field value.
      * @return this for a fluent API.
      */
     public StaticCounterFlyweight counterId(final int counterId)
@@ -107,7 +107,6 @@ public class StaticCounterFlyweight
 
         return this;
     }
-
 
     /**
      * {@inheritDoc}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,9 @@ interface ToggleApplication<T extends Enum<T>>
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     boolean isNeutral(T toggleState);
 
+    /**
+     * Cluster control toggle.
+     */
     ToggleApplication<ClusterControl.ToggleState> CLUSTER_CONTROL = new ToggleApplication<ClusterControl.ToggleState>()
     {
         public ClusterControl.ToggleState get(final AtomicCounter counter)
@@ -52,6 +55,9 @@ interface ToggleApplication<T extends Enum<T>>
         }
     };
 
+    /**
+     * Node state file control toggle.
+     */
     ToggleApplication<NodeControl.ToggleState> NODE_CONTROL = new ToggleApplication<NodeControl.ToggleState>()
     {
         public NodeControl.ToggleState get(final AtomicCounter counter)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package io.aeron.cluster;
 import io.aeron.ExclusivePublication;
 import io.aeron.Image;
 import io.aeron.Publication;
+import io.aeron.cluster.codecs.CloseReason;
 import io.aeron.cluster.service.Cluster;
 import io.aeron.logbuffer.ControlledFragmentHandler;
 import io.aeron.logbuffer.Header;
@@ -67,14 +68,14 @@ public interface ConsensusModuleExtension extends AutoCloseable
      * Cluster election is complete and new publication is added for the leadership term. If the node is a follower
      * then the publication will be null.
      *
-     * @param consensusControlState state to allow extension to control the consensus module
+     * @param consensusControlState state to allow extension to control the consensus module.
      */
     void onElectionComplete(ConsensusControlState consensusControlState);
 
     /**
-     * New Leadership term and the consensus control state has changed
+     * New Leadership term and the consensus control state has changed.
      *
-     * @param consensusControlState state to allow extension to control the consensus module
+     * @param consensusControlState state to allow extension to control the consensus module.
      */
     void onNewLeadershipTerm(ConsensusControlState consensusControlState);
 
@@ -145,9 +146,10 @@ public interface ConsensusModuleExtension extends AutoCloseable
     /**
      * Callback indicating a cluster session has closed.
      *
-     * @param clusterSessionId of the opened session which is unique and not reused.
+     * @param clusterSessionId  of the opened session which is unique and not reused.
+     * @param closeReason       reason to closing session
      */
-    void onSessionClosed(long clusterSessionId);
+    void onSessionClosed(long clusterSessionId, CloseReason closeReason);
 
     /**
      * Callback when preparing for a new Raft leadership term - before election.

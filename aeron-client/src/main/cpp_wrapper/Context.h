@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@
 #include <memory>
 #include <iostream>
 
-#include "util/Exceptions.h"
+#include "aeron_common.h"
+#include "aeronc.h"
+#include "CncFileDescriptor.h"
 #include "concurrent/AgentRunner.h"
 #include "concurrent/CountersReader.h"
-#include "CncFileDescriptor.h"
 #include "status/PublicationErrorFrame.h"
-
-#include "aeronc.h"
+#include "util/Exceptions.h"
 
 namespace aeron
 {
@@ -139,6 +139,7 @@ typedef std::function<void(aeron::status::PublicationErrorFrame &errorFrame)> on
 const static long NULL_TIMEOUT = -1;
 const static long DEFAULT_MEDIA_DRIVER_TIMEOUT_MS = 10000;
 const static long DEFAULT_RESOURCE_LINGER_MS = 5000;
+const static long DEFAULT_IDLE_SLEEP_DURATION_MS = 16;
 const static int MAX_CLIENT_NAME_LENGTH = 100;
 
 /**
@@ -215,46 +216,13 @@ public:
 
     Context()
     {
-        aeron_context_init(&m_context);
     }
 
-    /// @cond HIDDEN_SYMBOLS
-    explicit Context(aeron_context_t *context)
-    {
-        m_context = context;
-    }
-    /// @endcond
-
-    Context(Context &&other) noexcept :
-        m_context(other.m_context),
-        m_onAvailableImageHandler(other.m_onAvailableImageHandler),
-        m_onUnavailableImageHandler(other.m_onUnavailableImageHandler),
-        m_exceptionHandler(other.m_exceptionHandler),
-        m_onNewPublicationHandler(other.m_onNewPublicationHandler),
-        m_isOnNewExclusivePublicationHandlerSet(other.m_isOnNewExclusivePublicationHandlerSet),
-        m_onNewExclusivePublicationHandler(other.m_onNewExclusivePublicationHandler),
-        m_onNewSubscriptionHandler(other.m_onNewSubscriptionHandler),
-        m_onAvailableCounterHandler(other.m_onAvailableCounterHandler),
-        m_onUnavailableCounterHandler(other.m_onUnavailableCounterHandler),
-        m_onCloseClientHandler(other.m_onCloseClientHandler),
-        m_onErrorFrameHandler(other.m_onErrorFrameHandler)
-    {
-        other.m_context = nullptr;
-    }
-
-    ~Context()
-    {
-        aeron_context_close(m_context);
-    }
+    Context(const Context &other) = default;
 
     /// @cond HIDDEN_SYMBOLS
     this_t &conclude()
     {
-        if (clientName().length() > MAX_CLIENT_NAME_LENGTH)
-        {
-            throw util::IllegalArgumentException("clientName length must <= 100", SOURCEINFO);
-        }
-
         if (!m_isOnNewExclusivePublicationHandlerSet)
         {
             newExclusivePublicationHandler(m_onNewPublicationHandler);
@@ -271,11 +239,18 @@ public:
      */
     inline this_t &aeronDir(const std::string &directory)
     {
-        if (aeron_context_set_dir(m_context, directory.c_str()) < 0)
-        {
-            throw IllegalArgumentException(std::string(aeron_errmsg()), SOURCEINFO);
-        }
+        m_dirName = directory;
         return *this;
+    }
+
+    /**
+     * Get the directory that the Aeron client will use to communicate with the media driver.
+     *
+     * @return aeron directory
+     */
+    inline std::string aeronDir()
+    {
+        return m_dirName;
     }
 
     /**
@@ -286,10 +261,7 @@ public:
      */
     inline this_t &clientName(const std::string &clientName)
     {
-        if (aeron_context_set_client_name(m_context, clientName.c_str()) < 0)
-        {
-            throw IllegalArgumentException(std::string(aeron_errmsg()), SOURCEINFO);
-        }
+        m_clientName = clientName;
         return *this;
     }
 
@@ -300,7 +272,7 @@ public:
      */
     inline std::string clientName()
     {
-        return {aeron_context_get_client_name(m_context)};
+        return m_clientName;
     }
 
     /**
@@ -310,8 +282,7 @@ public:
      */
     inline std::string cncFileName() const
     {
-        const std::string dir = std::string(aeron_context_get_dir(m_context));
-        return dir + std::string(1, AERON_FILE_SEP) + CncFileDescriptor::CNC_FILE;
+        return m_dirName + std::string(1, AERON_FILE_SEP) + CncFileDescriptor::CNC_FILE;
     }
 
     /**
@@ -442,10 +413,7 @@ public:
             throw IllegalArgumentException("timeout less than 0", SOURCEINFO);
         }
 
-        if (aeron_context_set_driver_timeout_ms(m_context, static_cast<std::uint64_t>(value)) < 0)
-        {
-            throw IllegalArgumentException(std::string(aeron_errmsg()), SOURCEINFO);
-        }
+        m_mediaDriverTimeout = value;
         return *this;
     }
 
@@ -458,7 +426,7 @@ public:
      */
     long mediaDriverTimeout() const
     {
-        return static_cast<long>(aeron_context_get_driver_timeout_ms(m_context));
+        return m_mediaDriverTimeout;
     }
 
     /**
@@ -474,11 +442,9 @@ public:
         {
             throw IllegalArgumentException("timeout less than 0", SOURCEINFO);
         }
-        std::uint64_t duration_ns = static_cast<std::uint64_t>(value) * 1000000;
-        if (aeron_context_set_resource_linger_duration_ns(m_context, duration_ns) < 0)
-        {
-            throw IllegalArgumentException(std::string(aeron_errmsg()), SOURCEINFO);
-        }
+
+        m_resourceLingerTimeout = value;
+
         return *this;
     }
 
@@ -490,7 +456,7 @@ public:
      */
     long idleSleepDuration() const
     {
-        return static_cast<long>(aeron_context_get_idle_sleep_duration_ns(m_context) / 1000000);
+        return m_idleSleepDuration;
     }
 
     /**
@@ -506,11 +472,8 @@ public:
             throw IllegalArgumentException("idle sleep less than 0", SOURCEINFO);
         }
 
-        std::uint64_t duration_ns = static_cast<std::uint64_t>(value) * 1000000;
-        if (aeron_context_set_idle_sleep_duration_ns(m_context, duration_ns) < 0)
-        {
-            throw IllegalArgumentException(std::string(aeron_errmsg()), SOURCEINFO);
-        }
+        m_idleSleepDuration = value;
+
         return *this;
     }
 
@@ -522,10 +485,8 @@ public:
      */
     inline this_t &useConductorAgentInvoker(bool useConductorAgentInvoker)
     {
-        if (aeron_context_set_use_conductor_agent_invoker(m_context, useConductorAgentInvoker) < 0)
-        {
-            throw IllegalArgumentException(std::string(aeron_errmsg()), SOURCEINFO);
-        }
+        m_useConductorAgentInvoker = useConductorAgentInvoker;
+
         return *this;
     }
 
@@ -537,7 +498,8 @@ public:
      */
     inline this_t &preTouchMappedMemory(bool preTouchMappedMemory)
     {
-        aeron_context_set_pre_touch_mapped_memory(m_context, preTouchMappedMemory);
+        m_preTouchMappedMemory = preTouchMappedMemory;
+
         return *this;
     }
 
@@ -568,32 +530,32 @@ public:
 
     static std::string defaultAeronPath()
     {
-        char path[1024];
-        std::size_t length = sizeof(path);
-        int result = aeron_default_path(path, length);
+        char path[AERON_MAX_PATH];
+        int result = aeron_default_path(path, sizeof(path));
 
         if (result < 0)
         {
             std::string errMsg = std::string("Failed to get default path, result: ") += std::to_string(result);
             throw IllegalStateException(errMsg, SOURCEINFO);
         }
-        else if (length <= static_cast<std::size_t>(result))
+        else if (AERON_MAX_PATH <= static_cast<std::size_t>(result))
         {
             std::string errMsg = std::string("Path information was truncated, buffer length: ");
-            errMsg += std::to_string(length);
+            errMsg += std::to_string(AERON_MAX_PATH);
             errMsg += ", path length: ";
             errMsg += std::to_string(result);
-            errMsg += ", path: ";
-            errMsg += std::string(path, 0, length);
+            errMsg += ", truncated path: ";
+            errMsg += std::string(path, 0, AERON_MAX_PATH);
 
             throw IllegalStateException(errMsg, SOURCEINFO);
         }
 
-        return { path, 0, length };
+        return { path, 0, (std::size_t)result };
     }
 
 private:
-    aeron_context_t *m_context = nullptr;
+    std::string m_dirName = defaultAeronPath();
+    std::string m_clientName;
     on_available_image_t m_onAvailableImageHandler = defaultOnAvailableImageHandler;
     on_unavailable_image_t m_onUnavailableImageHandler = defaultOnUnavailableImageHandler;
     exception_handler_t m_exceptionHandler = defaultErrorHandler;
@@ -605,11 +567,46 @@ private:
     on_unavailable_counter_t m_onUnavailableCounterHandler = defaultOnUnavailableCounterHandler;
     on_close_client_t m_onCloseClientHandler = defaultOnCloseClientHandler;
     on_publication_error_frame_t m_onErrorFrameHandler = defaultOnErrorFrameHandler;
+    long m_idleSleepDuration = DEFAULT_IDLE_SLEEP_DURATION_MS;
+    long m_mediaDriverTimeout = DEFAULT_MEDIA_DRIVER_TIMEOUT_MS;
+    long m_resourceLingerTimeout = DEFAULT_RESOURCE_LINGER_MS;
+    bool m_useConductorAgentInvoker = false;
+    bool m_preTouchMappedMemory = false;
 
-    void attachCallbacksToContext()
+    void attachCallbacksToContext(aeron_context_t *context)
     {
+        if (aeron_context_set_dir(context, m_dirName.c_str()) < 0)
+        {
+            throw IllegalArgumentException(std::string(aeron_errmsg()), SOURCEINFO);
+        }
+
+        if (aeron_context_set_client_name(context, m_clientName.c_str()) < 0)
+        {
+            throw IllegalArgumentException(std::string(aeron_errmsg()), SOURCEINFO);
+        }
+
+        if (aeron_context_set_driver_timeout_ms(context, static_cast<std::uint64_t>(m_mediaDriverTimeout)) < 0)
+        {
+            throw IllegalArgumentException(std::string(aeron_errmsg()), SOURCEINFO);
+        }
+
+        std::uint64_t resource_duration_ns = static_cast<std::uint64_t>(m_resourceLingerTimeout) * 1000000;
+        if (aeron_context_set_resource_linger_duration_ns(context, resource_duration_ns) < 0)
+        {
+            throw IllegalArgumentException(std::string(aeron_errmsg()), SOURCEINFO);
+        }
+
+        std::uint64_t sleep_duration_ns = static_cast<std::uint64_t>(m_idleSleepDuration) * 1000000;
+        if (aeron_context_set_idle_sleep_duration_ns(context, sleep_duration_ns) < 0)
+        {
+            throw IllegalArgumentException(std::string(aeron_errmsg()), SOURCEINFO);
+        }
+
+        aeron_context_set_use_conductor_agent_invoker(context, m_useConductorAgentInvoker);
+        aeron_context_set_pre_touch_mapped_memory(context, m_preTouchMappedMemory);
+
         if (aeron_context_set_error_handler(
-            m_context,
+            context,
             errorHandlerCallback,
             const_cast<void *>(reinterpret_cast<const void *>(&m_exceptionHandler))) < 0)
         {
@@ -617,7 +614,7 @@ private:
         }
 
         if (aeron_context_set_on_new_publication(
-            m_context,
+            context,
             newPublicationHandlerCallback,
             const_cast<void *>(reinterpret_cast<const void *>(&m_onNewPublicationHandler))) < 0)
         {
@@ -625,7 +622,7 @@ private:
         }
 
         if (aeron_context_set_on_new_exclusive_publication(
-            m_context,
+            context,
             newPublicationHandlerCallback,
             const_cast<void *>(reinterpret_cast<const void *>(&m_onNewExclusivePublicationHandler))) < 0)
         {
@@ -633,7 +630,7 @@ private:
         }
 
         if (aeron_context_set_on_available_counter(
-            m_context,
+            context,
             availableCounterHandlerCallback,
             const_cast<void *>(reinterpret_cast<const void *>(&m_onAvailableCounterHandler))) < 0)
         {
@@ -641,7 +638,7 @@ private:
         }
 
         if (aeron_context_set_on_unavailable_counter(
-            m_context,
+            context,
             availableCounterHandlerCallback,
             const_cast<void *>(reinterpret_cast<const void *>(&m_onUnavailableCounterHandler))) < 0)
         {
@@ -649,7 +646,7 @@ private:
         }
 
         if (aeron_context_set_on_close_client(
-            m_context,
+            context,
             closeClientHandlerCallback,
             const_cast<void *>(reinterpret_cast<const void *>(&m_onCloseClientHandler))) < 0)
         {
@@ -657,7 +654,7 @@ private:
         }
 
         if (aeron_context_set_on_new_subscription(
-            m_context,
+            context,
             newSubscriptionHandlerCallback,
             const_cast<void *>(reinterpret_cast<const void *>(&m_onNewSubscriptionHandler))) < 0)
         {
@@ -665,7 +662,7 @@ private:
         }
 
         if (aeron_context_set_publication_error_frame_handler(
-            m_context,
+            context,
             errorFrameHandlerCallback,
             const_cast<void *>(reinterpret_cast<const void *>(&m_onErrorFrameHandler))) < 0)
         {

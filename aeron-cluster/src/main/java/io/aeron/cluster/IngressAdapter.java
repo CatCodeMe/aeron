@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import io.aeron.logbuffer.Header;
 import org.agrona.DirectBuffer;
 import org.agrona.collections.ArrayUtil;
 
-class IngressAdapter implements ControlledFragmentHandler, AutoCloseable
+class IngressAdapter implements AutoCloseable
 {
     private final int fragmentPollLimit;
     private final MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
@@ -34,7 +34,8 @@ class IngressAdapter implements ControlledFragmentHandler, AutoCloseable
     private final SessionKeepAliveDecoder sessionKeepAliveDecoder = new SessionKeepAliveDecoder();
     private final ChallengeResponseDecoder challengeResponseDecoder = new ChallengeResponseDecoder();
     private final AdminRequestDecoder adminRequestDecoder = new AdminRequestDecoder();
-    private final ControlledFragmentAssembler fragmentAssembler = new ControlledFragmentAssembler(this);
+    private final ControlledFragmentAssembler udpFragmentAssembler = new ControlledFragmentAssembler(this::onMessage);
+    private final ControlledFragmentAssembler ipcFragmentAssembler = new ControlledFragmentAssembler(this::onMessage);
     private final ConsensusModuleAgent consensusModuleAgent;
     private Subscription subscription;
     private Subscription ipcSubscription;
@@ -63,11 +64,13 @@ class IngressAdapter implements ControlledFragmentHandler, AutoCloseable
             ipcSubscription.close();
         }
 
-        fragmentAssembler.clear();
+        udpFragmentAssembler.clear();
+        ipcFragmentAssembler.clear();
     }
 
     @SuppressWarnings("MethodLength")
-    public Action onFragment(final DirectBuffer buffer, final int offset, final int length, final Header header)
+    public ControlledFragmentHandler.Action onMessage(
+        final DirectBuffer buffer, final int offset, final int length, final Header header)
     {
         messageHeaderDecoder.wrap(buffer, offset);
 
@@ -121,7 +124,8 @@ class IngressAdapter implements ControlledFragmentHandler, AutoCloseable
                     connectRequestDecoder.responseStreamId(),
                     connectRequestDecoder.version(),
                     responseChannel,
-                    credentials);
+                    credentials,
+                    header);
                 break;
             }
 
@@ -149,7 +153,8 @@ class IngressAdapter implements ControlledFragmentHandler, AutoCloseable
 
                 consensusModuleAgent.onSessionKeepAlive(
                     sessionKeepAliveDecoder.leadershipTermId(),
-                    sessionKeepAliveDecoder.clusterSessionId());
+                    sessionKeepAliveDecoder.clusterSessionId(),
+                    header);
                 break;
             }
 
@@ -194,7 +199,7 @@ class IngressAdapter implements ControlledFragmentHandler, AutoCloseable
             }
         }
 
-        return Action.CONTINUE;
+        return ControlledFragmentHandler.Action.CONTINUE;
     }
 
     void connect(final Subscription subscription, final Subscription ipcSubscription)
@@ -209,19 +214,26 @@ class IngressAdapter implements ControlledFragmentHandler, AutoCloseable
 
         if (null != subscription)
         {
-            fragmentsRead += subscription.controlledPoll(fragmentAssembler, fragmentPollLimit);
+            fragmentsRead += subscription.controlledPoll(udpFragmentAssembler, fragmentPollLimit);
         }
 
         if (null != ipcSubscription)
         {
-            fragmentsRead += ipcSubscription.controlledPoll(fragmentAssembler, fragmentPollLimit);
+            fragmentsRead += ipcSubscription.controlledPoll(ipcFragmentAssembler, fragmentPollLimit);
         }
 
         return fragmentsRead;
     }
 
-    void freeSessionBuffer(final int imageSessionId)
+    void freeSessionBuffer(final int imageSessionId, final boolean isIpc)
     {
-        fragmentAssembler.freeSessionBuffer(imageSessionId);
+        if (isIpc)
+        {
+            ipcFragmentAssembler.freeSessionBuffer(imageSessionId);
+        }
+        else
+        {
+            udpFragmentAssembler.freeSessionBuffer(imageSessionId);
+        }
     }
 }

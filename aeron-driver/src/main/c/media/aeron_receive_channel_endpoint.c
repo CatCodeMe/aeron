@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -293,7 +293,7 @@ int aeron_receive_channel_endpoint_send_sm(
     {
         if (bytes_sent >= 0)
         {
-            aeron_counter_increment(endpoint->short_sends_counter, 1);
+            aeron_counter_increment(endpoint->short_sends_counter);
         }
     }
 
@@ -332,11 +332,11 @@ int aeron_receive_channel_endpoint_send_nak(
     {
         if (bytes_sent >= 0)
         {
-            aeron_counter_increment(endpoint->short_sends_counter, 1);
+            aeron_counter_increment(endpoint->short_sends_counter);
         }
     }
 
-    aeron_driver_send_nak_message_func_t send_nak_message = endpoint->send_nak_message;
+    aeron_driver_nak_message_func_t send_nak_message = endpoint->send_nak_message;
     if (NULL != send_nak_message)
     {
         send_nak_message(
@@ -385,7 +385,7 @@ int aeron_receive_channel_endpoint_send_rttm(
     {
         if (bytes_sent >= 0)
         {
-            aeron_counter_increment(endpoint->short_sends_counter, 1);
+            aeron_counter_increment(endpoint->short_sends_counter);
         }
     }
 
@@ -419,7 +419,7 @@ int aeron_receive_channel_endpoint_send_response_setup(
     {
         if (bytes_sent >= 0)
         {
-            aeron_counter_increment(endpoint->short_sends_counter, 1);
+            aeron_counter_increment(endpoint->short_sends_counter);
         }
     }
 
@@ -460,12 +460,12 @@ int aeron_receiver_channel_endpoint_send_error_frame(
     {
         if (bytes_sent >= 0)
         {
-            aeron_counter_increment(channel_endpoint->short_sends_counter, 1);
+            aeron_counter_increment(channel_endpoint->short_sends_counter);
         }
     }
     else
     {
-        aeron_counter_increment(channel_endpoint->errors_frames_sent_counter, 1);
+        aeron_counter_increment(channel_endpoint->errors_frames_sent_counter);
     }
 
     return bytes_sent;
@@ -489,7 +489,7 @@ void aeron_receive_channel_endpoint_dispatch(
 
     if ((length < sizeof(aeron_frame_header_t)) || (frame_header->version != AERON_FRAME_HEADER_VERSION))
     {
-        aeron_counter_increment(receiver->invalid_frames_counter, 1);
+        aeron_counter_increment(receiver->invalid_frames_counter);
         return;
     }
 
@@ -508,7 +508,7 @@ void aeron_receive_channel_endpoint_dispatch(
             }
             else
             {
-                aeron_counter_increment(receiver->invalid_frames_counter, 1);
+                aeron_counter_increment(receiver->invalid_frames_counter);
             }
             break;
 
@@ -523,7 +523,7 @@ void aeron_receive_channel_endpoint_dispatch(
             }
             else
             {
-                aeron_counter_increment(receiver->invalid_frames_counter, 1);
+                aeron_counter_increment(receiver->invalid_frames_counter);
             }
             break;
 
@@ -538,7 +538,7 @@ void aeron_receive_channel_endpoint_dispatch(
             }
             else
             {
-                aeron_counter_increment(receiver->invalid_frames_counter, 1);
+                aeron_counter_increment(receiver->invalid_frames_counter);
             }
             break;
 
@@ -634,6 +634,29 @@ int aeron_receive_channel_endpoint_on_rttm(
     }
 
     return result;
+}
+
+int aeron_receive_channel_endpoint_matches_tag(
+    aeron_receive_channel_endpoint_t *endpoint,
+    aeron_udp_channel_t *channel,
+    bool *has_match)
+{
+    struct sockaddr_storage* current_control_addr = NULL;
+    if (1 == endpoint->destinations.length &&
+        endpoint->destinations.array[0].destination->conductor_fields.udp_channel == endpoint->conductor_fields.udp_channel &&
+        endpoint->destinations.array[0].destination->conductor_fields.udp_channel->has_explicit_control)
+    {
+        current_control_addr = &endpoint->destinations.array[0].destination->current_control_addr;
+    }
+
+    if (aeron_udp_channel_matches_tag(
+        channel, endpoint->conductor_fields.udp_channel, current_control_addr, NULL, has_match) < 0)
+    {
+        AERON_APPEND_ERR("%s", "");
+        return -1;
+    }
+
+    return 0;
 }
 
 void aeron_receive_channel_endpoint_try_remove_endpoint(aeron_receive_channel_endpoint_t *endpoint)
@@ -983,7 +1006,7 @@ int aeron_receiver_channel_endpoint_validate_sender_mtu_length(
         return -1;
     }
 
-    if (!aeron_receive_channel_endpoint_validate_so_rcvbuf(socket_rcvbuf, window_max_length, "Sender MTU", ctx))
+    if (!aeron_receive_channel_endpoint_validate_so_rcvbuf(socket_rcvbuf, sender_mtu_length, "Sender MTU", ctx))
     {
         return -1;
     }

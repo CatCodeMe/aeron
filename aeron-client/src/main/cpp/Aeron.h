@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@
 #include "util/Export.h"
 
 #if !defined(AERON_HIDE_DEPRECATION_MESSAGE)
-#pragma message ( "The C++ API is deprecated, please move to using the C++ Wrapper" )
+#pragma message ( "The C++ API will be removed in 1.50.0! Please move to using the C++ Wrapper API instead." )
 #endif
 
 /// Top namespace for Aeron C++ API
@@ -247,6 +247,8 @@ public:
 
     /**
      * Allocate a counter on the media driver and return a {@link Counter} for it.
+     *
+     * The typeId should be 1000 or greater. Values lower than that are reserved for use by Aeron.
      *
      * @param typeId      for the counter.
      * @param keyBuffer   containing the optional key for the counter.

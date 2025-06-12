@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,14 +34,9 @@ import static io.aeron.logbuffer.LogBufferDescriptor.computePosition;
 public class UnicastFlowControl implements FlowControl
 {
     /**
-     * Singleton instance which can be used to avoid allocation.
-     */
-    public static final UnicastFlowControl INSTANCE = new UnicastFlowControl();
-
-    /**
      * Multiple of receiver window to allow for a retransmit action.
      */
-    private static final int RETRANSMIT_RECEIVER_WINDOW_MULTIPLE = 16;
+    private int retransmitReceiverWindowMultiple;
 
     /**
      * {@inheritDoc}
@@ -106,6 +101,10 @@ public class UnicastFlowControl implements FlowControl
         final int initialTermId,
         final int termBufferLength)
     {
+        retransmitReceiverWindowMultiple = FlowControl.retransmitReceiverWindowMultiple(
+            udpChannel,
+            context.unicastFlowControlRetransmitReceiverWindowMultiple()
+        );
     }
 
     /**
@@ -141,6 +140,6 @@ public class UnicastFlowControl implements FlowControl
         final int mtuLength)
     {
         return FlowControl.calculateRetransmissionLength(
-            resendLength, termBufferLength, termOffset, RETRANSMIT_RECEIVER_WINDOW_MULTIPLE);
+            resendLength, termBufferLength, termOffset, retransmitReceiverWindowMultiple);
     }
 }

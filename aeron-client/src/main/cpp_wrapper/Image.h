@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@
 #include <atomic>
 #include <cassert>
 #include <functional>
+#include <memory>
 
 #include "concurrent/AtomicBuffer.h"
 #include "concurrent/logbuffer/Header.h"
@@ -224,6 +225,11 @@ public:
         return aeron_image_is_closed(m_image);
     }
 
+    inline bool isPublicationRevoked() const
+    {
+        return aeron_image_is_publication_revoked(m_image);
+    }
+
     /**
      * The position this Image has been consumed to by the subscriber.
      *
@@ -282,6 +288,14 @@ public:
     inline std::int64_t endOfStreamPosition() const
     {
         return aeron_image_end_of_stream_position(m_image);
+    }
+
+    inline void reject(std::string reason)
+    {
+        if (aeron_image_reject(m_image, reason.c_str()) < 0)
+        {
+            AERON_MAP_ERRNO_TO_SOURCED_EXCEPTION_AND_THROW;
+        }
     }
 
     /**
@@ -485,16 +499,6 @@ public:
         }
 
         return numFragments;
-    }
-
-    /**
-     * Force the driver to disconnect this image from the remote publication.
-     *
-     * @param reason an error message to be forwarded back to the publication.
-     */
-    void reject(std::string reason)
-    {
-        aeron_image_reject(m_image, reason.c_str());
     }
 
 private:

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -134,6 +134,22 @@ int32_t aeron_counter_publisher_position_allocate(
     const char *channel);
 
 int32_t aeron_counter_sender_bpe_allocate(
+    aeron_counters_manager_t *counters_manager,
+    int64_t registration_id,
+    int32_t session_id,
+    int32_t stream_id,
+    size_t channel_length,
+    const char *channel);
+
+int32_t aeron_counter_sender_naks_received_allocate(
+    aeron_counters_manager_t *counters_manager,
+    int64_t registration_id,
+    int32_t session_id,
+    int32_t stream_id,
+    size_t channel_length,
+    const char *channel);
+
+int32_t aeron_counter_receiver_naks_sent_allocate(
     aeron_counters_manager_t *counters_manager,
     int64_t registration_id,
     int32_t session_id,

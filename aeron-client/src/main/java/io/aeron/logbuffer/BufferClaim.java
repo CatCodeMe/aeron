@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -183,7 +183,7 @@ public final class BufferClaim
             frameLength = Integer.reverseBytes(frameLength);
         }
 
-        buffer.putIntOrdered(FRAME_LENGTH_FIELD_OFFSET, frameLength);
+        buffer.putIntRelease(FRAME_LENGTH_FIELD_OFFSET, frameLength);
     }
 
     /**
@@ -198,7 +198,7 @@ public final class BufferClaim
         }
 
         buffer.putShort(TYPE_FIELD_OFFSET, (short)HDR_TYPE_PAD, LITTLE_ENDIAN);
-        buffer.putIntOrdered(FRAME_LENGTH_FIELD_OFFSET, frameLength);
+        buffer.putIntRelease(FRAME_LENGTH_FIELD_OFFSET, frameLength);
     }
 }
 

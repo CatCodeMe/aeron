@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ public class PublicationErrorFrame implements Cloneable
     private int streamId;
     private long receiverId;
     private long destinationRegistrationId;
-    private Long groupTag;
+    private long groupTag;
     private int errorCode;
     private String errorMessage;
     private InetSocketAddress sourceAddress;
@@ -77,10 +77,10 @@ public class PublicationErrorFrame implements Cloneable
     /**
      * Group tag of the source that sent the error frame.
      *
-     * @return group tag of the source that sent the error frame, <code>null</code> if the source did not have a group
+     * @return group tag of the source that sent the error frame or {@link io.aeron.Aeron#NULL_VALUE} if the source did not have a group
      * tag set.
      */
-    public Long groupTag()
+    public long groupTag()
     {
         return groupTag;
     }
@@ -163,5 +163,25 @@ public class PublicationErrorFrame implements Cloneable
         {
             throw new RuntimeException(ex);
         }
+    }
+
+    /**
+     * Build a String representation of the error frame.
+     *
+     * @return a String representation of the error frame.
+     */
+    public String toString()
+    {
+        return "CounterMessageFlyweight{" +
+            "registrationId=" + registrationId() +
+            ", sessionId=" + sessionId() +
+            ", streamId=" + streamId() +
+            ", receiverId=" + receiverId() +
+            ", destinationRegistrationId=" + destinationRegistrationId() +
+            ", groupTag=" + groupTag() +
+            ", errorCode=" + errorCode() +
+            ", errorMessage=" + errorMessage() +
+            ", sourceAddress=" + sourceAddress() +
+            "}";
     }
 }

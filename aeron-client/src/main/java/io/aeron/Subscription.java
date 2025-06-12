@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -176,7 +176,7 @@ public final class Subscription extends SubscriptionFields implements AutoClosea
      *
      * @param fragmentHandler callback for handling each message fragment as it is read.
      * @param fragmentLimit   number of message fragments to limit when polling across multiple {@link Image}s.
-     * @return the number of fragments received
+     * @return the number of fragments received.
      */
     public int poll(final FragmentHandler fragmentHandler, final int fragmentLimit)
     {
@@ -215,7 +215,7 @@ public final class Subscription extends SubscriptionFields implements AutoClosea
      *
      * @param fragmentHandler callback for handling each message fragment as it is read.
      * @param fragmentLimit   number of message fragments to limit when polling across multiple {@link Image}s.
-     * @return the number of fragments received
+     * @return the number of fragments received.
      * @see ControlledFragmentHandler
      */
     public int controlledPoll(final ControlledFragmentHandler fragmentHandler, final int fragmentLimit)
@@ -346,8 +346,8 @@ public final class Subscription extends SubscriptionFields implements AutoClosea
     /**
      * Get the {@link Image} at the given index from the images array.
      *
-     * @param index in the array
-     * @return image at given index
+     * @param index in the array.
+     * @return image at given index.
      * @throws ArrayIndexOutOfBoundsException if the index is not valid.
      */
     public Image imageAtIndex(final int index)
@@ -622,6 +622,11 @@ public final class Subscription extends SubscriptionFields implements AutoClosea
 
     void rejectImage(final long correlationId, final long position, final String reason)
     {
+        if (channel().startsWith(CommonContext.SPY_PREFIX))
+        {
+            throw new AeronException("spies can not reject images");
+        }
+
         conductor.rejectImage(correlationId, position, reason);
     }
 
@@ -633,6 +638,7 @@ public final class Subscription extends SubscriptionFields implements AutoClosea
         return "Subscription{" +
             "registrationId=" + registrationId +
             ", isClosed=" + isClosed +
+            ", isConnected=" + isConnected() +
             ", streamId=" + streamId +
             ", channel='" + channel + '\'' +
             ", localSocketAddresses=" + localSocketAddresses() +

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ class ListRecordingSubscriptionsSession implements Session
     /**
      * {@inheritDoc}
      */
-    public void abort()
+    public void abort(final String reason)
     {
         isDone = true;
     }
@@ -100,7 +100,11 @@ class ListRecordingSubscriptionsSession implements Session
                 if (!(applyStreamId && subscription.streamId() != streamId) &&
                     subscription.channel().contains(channelFragment))
                 {
-                    controlSession.sendSubscriptionDescriptor(correlationId, subscription);
+                    if (!controlSession.sendSubscriptionDescriptor(correlationId, subscription))
+                    {
+                        isDone = controlSession.isDone();
+                        break;
+                    }
                     workCount += 1;
 
                     if (++sent >= subscriptionCount)

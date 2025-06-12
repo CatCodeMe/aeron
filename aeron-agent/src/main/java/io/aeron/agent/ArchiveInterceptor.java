@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -105,9 +105,10 @@ class ArchiveInterceptor
     static class ControlSessionStateChange
     {
         @Advice.OnMethodEnter
-        static <E extends Enum<E>> void logStateChange(final E oldState, final E newState, final long controlSessionId)
+        static <E extends Enum<E>> void logStateChange(
+            final E oldState, final E newState, final long controlSessionId, final String reason)
         {
-            LOGGER.logControlSessionStateChange(oldState, newState, controlSessionId);
+            LOGGER.logControlSessionStateChange(oldState, newState, controlSessionId, reason);
         }
     }
 

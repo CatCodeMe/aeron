@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #ifndef AERON_CLIENT_CONDUCTOR_H
 #define AERON_CLIENT_CONDUCTOR_H
 
+#include <chrono>
 #include "aeronc.h"
 
 namespace aeron

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,6 +53,7 @@ public final class ReplayMerge implements AutoCloseable
     private static final long INITIAL_GET_MAX_RECORDED_POSITION_BACKOFF_MS = 8;
     private static final long GET_MAX_RECORDED_POSITION_BACKOFF_MAX_MS = 500;
 
+    @SuppressWarnings("JavadocVariable")
     enum State
     {
         RESOLVE_REPLAY_PORT,

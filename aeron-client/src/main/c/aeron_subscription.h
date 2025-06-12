@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -100,6 +100,9 @@ int aeron_client_conductor_subscription_install_new_image_list(
 
 int aeron_client_conductor_subscription_prune_image_lists(aeron_subscription_t *subscription);
 
+int aeron_subscription_reject_image(
+    aeron_subscription_t *subscription, int64_t image_correlation_id, int64_t position, const char *reason);
+
 inline int aeron_subscription_find_image_index(aeron_image_list_t *volatile image_list, aeron_image_t *image)
 {
     size_t length = NULL == image_list ? 0 : image_list->length;
@@ -132,8 +135,5 @@ inline void aeron_subscription_propose_last_image_change_number(
         AERON_SET_RELEASE(subscription->last_image_list_change_number, change_number);
     }
 }
-
-int aeron_subscription_reject_image(
-    aeron_subscription_t *subscription, int64_t image_correlation_id, int64_t position, const char *reason);
 
 #endif //AERON_C_SUBSCRIPTION_H

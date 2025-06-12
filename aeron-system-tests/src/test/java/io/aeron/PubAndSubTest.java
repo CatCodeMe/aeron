@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import io.aeron.test.driver.TestMediaDriver;
 import org.agrona.BitUtil;
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
+import org.agrona.collections.MutableBoolean;
 import org.agrona.collections.MutableInteger;
 import org.agrona.collections.MutableLong;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -42,12 +43,14 @@ import org.mockito.InOrder;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static io.aeron.SystemTests.verifyLossOccurredForStream;
@@ -55,7 +58,11 @@ import static io.aeron.logbuffer.FrameDescriptor.*;
 import static io.aeron.logbuffer.LogBufferDescriptor.computeFragmentedFrameLength;
 import static io.aeron.protocol.DataHeaderFlyweight.*;
 import static java.util.Arrays.asList;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.agrona.BitUtil.SIZE_OF_INT;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.Mockito.*;
@@ -69,6 +76,7 @@ class PubAndSubTest
     {
         return asList(
             "aeron:udp?endpoint=localhost:24325",
+            "aeron:udp?endpoint=localhost:24325|session=id=55555",
             "aeron:udp?endpoint=224.20.30.39:24326|interface=localhost",
             IPC_URI);
     }
@@ -77,9 +85,15 @@ class PubAndSubTest
     final SystemTestWatcher watcher = new SystemTestWatcher();
 
     private static final int STREAM_ID = 1001;
-    private static final ThreadingMode THREADING_MODE = ThreadingMode.SHARED;
 
-    private final MediaDriver.Context context = new MediaDriver.Context();
+    private final MediaDriver.Context driverContext = new MediaDriver.Context()
+        .publicationConnectionTimeoutNs(MILLISECONDS.toNanos(300))
+        .imageLivenessTimeoutNs(MILLISECONDS.toNanos(500))
+        .timerIntervalNs(MILLISECONDS.toNanos(100));
+
+    private final Aeron.Context clientContext = new Aeron.Context()
+        .resourceLingerDurationNs(MILLISECONDS.toNanos(200))
+        .idleSleepDurationNs(MILLISECONDS.toNanos(100));
 
     private Aeron publishingClient;
     private Aeron subscribingClient;
@@ -90,21 +104,20 @@ class PubAndSubTest
     private final UnsafeBuffer buffer = new UnsafeBuffer(new byte[8192]);
     private final FragmentHandler fragmentHandler = mock(FragmentHandler.class);
     private final RawBlockHandler rawBlockHandler = mock(RawBlockHandler.class);
+    private final AvailableImageHandler availableImageHandler = mock(AvailableImageHandler.class);
+    private final UnavailableImageHandler unavailableImageHandler = mock(UnavailableImageHandler.class);
 
     private void launch(final String channel)
     {
-        context
-            .dirDeleteOnStart(true)
-            .threadingMode(THREADING_MODE)
-            .publicationConnectionTimeoutNs(TimeUnit.MILLISECONDS.toNanos(500))
-            .timerIntervalNs(TimeUnit.MILLISECONDS.toNanos(100));
+        driverContext.dirDeleteOnStart(true).threadingMode(ThreadingMode.SHARED);
 
-        driver = TestMediaDriver.launch(context, watcher);
+        driver = TestMediaDriver.launch(driverContext, watcher);
         watcher.dataCollector().add(driver.context().aeronDirectory());
 
-        subscribingClient = Aeron.connect();
-        publishingClient = Aeron.connect();
-        subscription = subscribingClient.addSubscription(channel, STREAM_ID);
+        subscribingClient = Aeron.connect(clientContext.clone());
+        publishingClient = Aeron.connect(clientContext.clone());
+        subscription = subscribingClient.addSubscription(
+            channel, STREAM_ID, availableImageHandler, unavailableImageHandler);
         publication = publishingClient.addPublication(channel, STREAM_ID);
     }
 
@@ -151,7 +164,7 @@ class PubAndSubTest
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {1408, 128})
+    @ValueSource(ints = { 1408, 128 })
     void shouldSendAndReceiveMessage(final int mtu)
     {
         launch("aeron:udp?endpoint=localhost:24325|mtu=" + mtu);
@@ -193,7 +206,7 @@ class PubAndSubTest
         final int messageLength = (termBufferLength / numMessagesInTermBuffer) - HEADER_LENGTH;
         final int numMessagesToSend = numMessagesInTermBuffer + 1;
 
-        context.publicationTermBufferLength(termBufferLength);
+        driverContext.publicationTermBufferLength(termBufferLength);
 
         launch(channel);
 
@@ -226,7 +239,7 @@ class PubAndSubTest
             termBufferLengthMinusPaddingHeader - (num1kMessagesInTermBuffer * 1024) - HEADER_LENGTH;
         final int messageLength = 1024 - HEADER_LENGTH;
 
-        context.publicationTermBufferLength(termBufferLength);
+        driverContext.publicationTermBufferLength(termBufferLength);
 
         launch(channel);
 
@@ -275,7 +288,7 @@ class PubAndSubTest
                 fragmentsRead.value += fragments;
             },
             Integer.MAX_VALUE,
-            TimeUnit.MILLISECONDS.toNanos(500));
+            MILLISECONDS.toNanos(500));
 
         final InOrder inOrder = inOrder(fragmentHandler);
 
@@ -312,12 +325,13 @@ class PubAndSubTest
         final LossGenerator noLossGenerator =
             DebugChannelEndpointConfiguration.lossGeneratorSupplier(0, 0);
 
-        context.publicationTermBufferLength(termBufferLength);
+        driverContext.publicationTermBufferLength(termBufferLength);
 
-        context.sendChannelEndpointSupplier((udpChannel, statusIndicator, context) -> new DebugSendChannelEndpoint(
-            udpChannel, statusIndicator, context, noLossGenerator, noLossGenerator));
+        driverContext.sendChannelEndpointSupplier(
+            (udpChannel, statusIndicator, context) ->
+                new DebugSendChannelEndpoint(udpChannel, statusIndicator, context, noLossGenerator, noLossGenerator));
 
-        TestMediaDriver.enableRandomLoss(context, 0.1, 0xcafebabeL, true, false);
+        TestMediaDriver.enableRandomLoss(driverContext, 0.1, 0xcafebabeL, true, false);
 
         launch(channel);
 
@@ -337,7 +351,7 @@ class PubAndSubTest
             eq(messageLength),
             any(Header.class));
 
-        verifyLossOccurredForStream(context.aeronDirectoryName(), STREAM_ID);
+        verifyLossOccurredForStream(driverContext.aeronDirectoryName(), STREAM_ID);
     }
 
     @ParameterizedTest
@@ -357,12 +371,13 @@ class PubAndSubTest
         final LossGenerator noLossGenerator =
             DebugChannelEndpointConfiguration.lossGeneratorSupplier(0, 0);
 
-        context.publicationTermBufferLength(termBufferLength);
+        driverContext.publicationTermBufferLength(termBufferLength);
 
-        context.sendChannelEndpointSupplier((udpChannel, statusIndicator, context) -> new DebugSendChannelEndpoint(
-            udpChannel, statusIndicator, context, noLossGenerator, noLossGenerator));
+        driverContext.sendChannelEndpointSupplier(
+            (udpChannel, statusIndicator, context) ->
+                new DebugSendChannelEndpoint(udpChannel, statusIndicator, context, noLossGenerator, noLossGenerator));
 
-        TestMediaDriver.enableRandomLoss(context, 0.1, 0xcafebabeL, true, false);
+        TestMediaDriver.enableRandomLoss(driverContext, 0.1, 0xcafebabeL, true, false);
 
         launch(channel);
 
@@ -385,7 +400,7 @@ class PubAndSubTest
             eq(messageLength),
             any(Header.class));
 
-        verifyLossOccurredForStream(context.aeronDirectoryName(), STREAM_ID);
+        verifyLossOccurredForStream(driverContext.aeronDirectoryName(), STREAM_ID);
     }
 
     @ParameterizedTest
@@ -400,7 +415,7 @@ class PubAndSubTest
         final int messageLength = (termBufferLength / numMessagesInTermBuffer) - HEADER_LENGTH;
         final int numMessagesToSend = numMessagesInTermBuffer + 1;
 
-        context.publicationTermBufferLength(termBufferLength);
+        driverContext.publicationTermBufferLength(termBufferLength);
 
         launch(channel);
 
@@ -436,7 +451,7 @@ class PubAndSubTest
                 fragmentsRead.value += fragments;
             },
             Integer.MAX_VALUE,
-            TimeUnit.MILLISECONDS.toNanos(900));
+            MILLISECONDS.toNanos(900));
 
         verify(fragmentHandler, times(numMessagesToSend)).onFragment(
             any(DirectBuffer.class),
@@ -460,7 +475,7 @@ class PubAndSubTest
         final int messageLength = 1032 - HEADER_LENGTH;
         final int numMessagesToSend = 64;
 
-        context.publicationTermBufferLength(termBufferLength);
+        driverContext.publicationTermBufferLength(termBufferLength);
 
         launch(channel);
 
@@ -498,7 +513,7 @@ class PubAndSubTest
         final int numBatchesPerTerm = 4;
         final int numMessagesPerBatch = numMessagesToSend / numBatchesPerTerm;
 
-        context.publicationTermBufferLength(termBufferLength);
+        driverContext.publicationTermBufferLength(termBufferLength);
 
         launch(channel);
 
@@ -537,7 +552,7 @@ class PubAndSubTest
         final int maxFails = 10000;
         int messagesSent = 0;
 
-        context.publicationTermBufferLength(termBufferLength);
+        driverContext.publicationTermBufferLength(termBufferLength);
 
         launch(channel);
 
@@ -578,7 +593,7 @@ class PubAndSubTest
                 fragmentsRead.value += fragments;
             },
             Integer.MAX_VALUE,
-            TimeUnit.MILLISECONDS.toNanos(500));
+            MILLISECONDS.toNanos(500));
 
         verify(fragmentHandler, times(messagesToReceive)).onFragment(
             any(DirectBuffer.class),
@@ -598,7 +613,7 @@ class PubAndSubTest
         final int numMessagesToSendStageOne = numMessagesInTermBuffer / 2;
         final int numMessagesToSendStageTwo = numMessagesInTermBuffer;
 
-        context.publicationTermBufferLength(termBufferLength);
+        driverContext.publicationTermBufferLength(termBufferLength);
 
         launch(channel);
 
@@ -641,13 +656,13 @@ class PubAndSubTest
     {
         final int termBufferLength = 64 * 1024;
         final int numFragmentsPerMessage = 2;
-        final int mtuLength = context.mtuLength();
+        final int mtuLength = driverContext.mtuLength();
         final int frameLength = mtuLength - HEADER_LENGTH;
         final int messageLength = frameLength * numFragmentsPerMessage;
         final int numMessagesToSend = 2;
         final int numFramesToExpect = numMessagesToSend * numFragmentsPerMessage;
 
-        context.publicationTermBufferLength(termBufferLength);
+        driverContext.publicationTermBufferLength(termBufferLength);
 
         launch(channel);
 
@@ -673,7 +688,7 @@ class PubAndSubTest
                 fragmentsRead.value += fragments;
             },
             Integer.MAX_VALUE,
-            TimeUnit.MILLISECONDS.toNanos(500));
+            MILLISECONDS.toNanos(500));
 
         verify(fragmentHandler, times(numFramesToExpect)).onFragment(
             any(DirectBuffer.class),
@@ -1173,6 +1188,116 @@ class PubAndSubTest
                 }
             }
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("channels")
+    void shouldMarkPublicationNotConnectedWhenItLoosesAllSubscribers(final String channel)
+    {
+        TestMediaDriver.notSupportedOnCMediaDriver("publication image state management");
+
+        driverContext.timerIntervalNs(MILLISECONDS.toNanos(1500))
+            .publicationConnectionTimeoutNs(SECONDS.toNanos(2));
+        launch(channel);
+        Tests.awaitConnected(publication);
+        Tests.awaitConnected(subscription);
+
+        final BufferClaim bufferClaim = new BufferClaim();
+        final ThreadLocalRandom random = ThreadLocalRandom.current();
+        while (publication.tryClaim(random.nextInt(1, 1000), bufferClaim) < 0)
+        {
+            Tests.yield();
+        }
+        final int msgLength = bufferClaim.length();
+        bufferClaim.buffer().setMemory(bufferClaim.offset(), msgLength, (byte)random.nextInt());
+        bufferClaim.commit();
+
+        final MutableBoolean received = new MutableBoolean();
+        final FragmentHandler fragmentHandler = (buffer, offset, length, header) ->
+        {
+            received.set(true);
+            assertEquals(msgLength, length);
+        };
+        while (0 == subscription.poll(fragmentHandler, 1))
+        {
+            Tests.yield();
+        }
+        assertTrue(received.get());
+
+        subscription.close();
+
+        final long startNs = System.nanoTime();
+        Tests.await(() -> !publication.isConnected());
+        final long durationNs = System.nanoTime() - startNs;
+        assertThat(durationNs, lessThan(driver.context().timerIntervalNs() / 2));
+    }
+
+    @ParameterizedTest
+    @MethodSource("channels")
+    @InterruptAfter(10)
+    void shouldCleanupImagesWhenPublicationIsClosed(final String channel)
+    {
+        final AtomicInteger unavailableCount = new AtomicInteger();
+        doAnswer(invocation ->
+        {
+            unavailableCount.getAndIncrement();
+            return null;
+        }).when(unavailableImageHandler).onUnavailableImage(any(Image.class));
+
+        launch(channel);
+        final Subscription sub2 =
+            subscribingClient.addSubscription(channel, STREAM_ID, availableImageHandler, unavailableImageHandler);
+        Tests.awaitConnected(publication);
+        Tests.awaitConnected(subscription);
+        Tests.awaitConnected(sub2);
+
+        final BufferClaim bufferClaim = new BufferClaim();
+        final int msgLength = 555;
+        while (publication.tryClaim(msgLength, bufferClaim) < 0)
+        {
+            Tests.yield();
+        }
+        bufferClaim.buffer().setMemory(bufferClaim.offset(), msgLength, (byte)0xFF);
+        bufferClaim.commit();
+
+        final Image image = subscription.imageAtIndex(0);
+        final Image image2 = sub2.imageAtIndex(0);
+        assertNotSame(image, image2);
+        assertEquals(image.correlationId(), image2.correlationId());
+
+        while (0 == image.poll(fragmentHandler, 1) || 0 == image2.poll(fragmentHandler, 1))
+        {
+            Tests.yield();
+        }
+        verify(fragmentHandler, times(2)).onFragment(
+            any(DirectBuffer.class), eq(HEADER_LENGTH), eq(msgLength), any(Header.class));
+
+        final Path aeronDir = driver.context().aeronDirectory().toPath();
+        final Path pubLogBuffer = aeronDir.resolve("publications/" + publication.registrationId() + ".logbuffer");
+        final Path imageLogBuffer;
+        if (ChannelUri.parse(channel).isIpc())
+        {
+            imageLogBuffer = pubLogBuffer;
+        }
+        else
+        {
+            imageLogBuffer = aeronDir.resolve("images/" + image.correlationId() + ".logbuffer");
+        }
+        assertTrue(Files.exists(pubLogBuffer));
+        assertTrue(Files.exists(imageLogBuffer));
+
+        publication.close();
+
+        Tests.await(() -> 2 == unavailableCount.get());
+        assertEquals(0, subscription.imageCount());
+        assertEquals(0, sub2.imageCount());
+
+        while (Files.exists(pubLogBuffer) || Files.exists(imageLogBuffer))
+        {
+            Tests.yield();
+        }
+        assertFalse(Files.exists(pubLogBuffer));
+        assertFalse(Files.exists(imageLogBuffer));
     }
 
     private static void verifyFragment(

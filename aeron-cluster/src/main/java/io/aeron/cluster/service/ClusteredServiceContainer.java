@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import static io.aeron.ChannelUri.*;
+import static io.aeron.CommonContext.driverFilePageSize;
 import static io.aeron.cluster.service.ClusteredServiceContainer.Configuration.*;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static org.agrona.SystemUtil.*;
@@ -849,9 +850,15 @@ public final class ClusteredServiceContainer implements AutoCloseable
 
             if (null == markFile)
             {
+                final int filePageSize = null != aeron ? aeron.context().filePageSize() :
+                    driverFilePageSize(new File(aeronDirectoryName), epochClock, new CommonContext().driverTimeoutMs());
                 markFile = new ClusterMarkFile(
                     new File(markFileDir, ClusterMarkFile.markFilenameForService(serviceId)),
-                    ClusterComponentType.CONTAINER, errorBufferLength, epochClock, LIVENESS_TIMEOUT_MS);
+                    ClusterComponentType.CONTAINER,
+                    errorBufferLength,
+                    epochClock,
+                    LIVENESS_TIMEOUT_MS,
+                    filePageSize);
             }
 
             MarkFile.ensureMarkFileLink(
@@ -1010,10 +1017,10 @@ public final class ClusteredServiceContainer implements AutoCloseable
                 clusteredService = Configuration.newClusteredService();
             }
 
-            abortLatch = new CountDownLatch(aeron.conductorAgentInvoker() == null ? 1 : 0);
+            abortLatch = new CountDownLatch(!aeron.context().useConductorAgentInvoker() ? 1 : 0);
             concludeMarkFile();
 
-            if (io.aeron.driver.Configuration.printConfigurationOnStart())
+            if (CommonContext.shouldPrintConfigurationOnStart())
             {
                 System.out.println(this);
             }
@@ -1982,7 +1989,7 @@ public final class ClusteredServiceContainer implements AutoCloseable
         }
 
         /**
-         * Indicates if this node should take standby snapshots
+         * Indicates if this node should take standby snapshots.
          *
          * @return <code>true</code> if this should take standby snapshots, <code>false</code> otherwise.
          * @see ClusteredServiceContainer.Configuration#STANDBY_SNAPSHOT_ENABLED_PROP_NAME
@@ -1995,7 +2002,7 @@ public final class ClusteredServiceContainer implements AutoCloseable
         }
 
         /**
-         * Indicates if this node should take standby snapshots
+         * Indicates if this node should take standby snapshots.
          *
          * @param standbySnapshotEnabled if this node should take standby snapshots.
          * @return this for a fluent API.
@@ -2032,11 +2039,7 @@ public final class ClusteredServiceContainer implements AutoCloseable
         private void concludeMarkFile()
         {
             ClusterMarkFile.checkHeaderLength(
-                aeron.context().aeronDirectoryName(),
-                controlChannel(),
-                null,
-                serviceName,
-                null);
+                aeron.context().aeronDirectoryName(), controlChannel(), null, serviceName, null);
 
             final MarkFileHeaderEncoder encoder = markFile.encoder();
 

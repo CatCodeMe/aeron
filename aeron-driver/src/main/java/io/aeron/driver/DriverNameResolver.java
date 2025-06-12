@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -321,7 +321,7 @@ final class DriverNameResolver implements AutoCloseable, UdpNameResolutionTransp
         final int neighborCount = neighborList.size();
         if (neighborsCounter.getWeak() != neighborCount)
         {
-            neighborsCounter.setOrdered(neighborCount);
+            neighborsCounter.setRelease(neighborCount);
         }
 
         return workCount;
@@ -447,7 +447,7 @@ final class DriverNameResolver implements AutoCloseable, UdpNameResolutionTransp
                     InetAddress.getByAddress(neighborAddress), port), timeOfLastActivity);
                 Neighbor.neighborAdded(nowMs, neighbor.socketAddress);
                 neighborList.add(neighbor);
-                neighborsCounter.setOrdered(neighborList.size());
+                neighborsCounter.setRelease(neighborList.size());
             }
             catch (final Exception ex)
             {

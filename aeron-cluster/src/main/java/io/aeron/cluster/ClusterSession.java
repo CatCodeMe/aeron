@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import io.aeron.cluster.codecs.EventCode;
 import io.aeron.exceptions.AeronException;
 import io.aeron.exceptions.RegistrationException;
 import io.aeron.logbuffer.BufferClaim;
+import io.aeron.logbuffer.Header;
 import org.agrona.*;
 import org.agrona.collections.ArrayUtil;
 import org.agrona.concurrent.errors.DistinctErrorLog;
@@ -36,11 +37,13 @@ final class ClusterSession implements ClusterClientSession
     static final int MAX_ENCODED_PRINCIPAL_LENGTH = 4 * 1024;
     static final int MAX_ENCODED_MEMBERSHIP_QUERY_LENGTH = 4 * 1024;
 
+    @SuppressWarnings("JavadocVariable")
     enum State
     {
         INIT, CONNECTING, CONNECTED, CHALLENGED, AUTHENTICATED, REJECTED, OPEN, CLOSING, INVALID, CLOSED
     }
 
+    @SuppressWarnings("JavadocVariable")
     enum Action
     {
         CLIENT, BACKUP, HEARTBEAT, STANDBY_SNAPSHOT
@@ -53,6 +56,7 @@ final class ClusterSession implements ClusterClientSession
     private long openedLogPosition = AeronArchive.NULL_POSITION;
     private long closedLogPosition = AeronArchive.NULL_POSITION;
     private transient long timeOfLastActivityNs;
+    private transient long ingressImageCorrelationId = Aeron.NULL_VALUE;
     private long responsePublicationId = Aeron.NULL_VALUE;
     private final int responseStreamId;
     private final String responseChannel;
@@ -415,6 +419,24 @@ final class ClusterSession implements ClusterClientSession
         return requestInput;
     }
 
+    void linkIngressImage(final Header header)
+    {
+        if (Aeron.NULL_VALUE == ingressImageCorrelationId)
+        {
+            ingressImageCorrelationId = ((Image)header.context()).correlationId();
+        }
+    }
+
+    void unlinkIngressImage()
+    {
+        ingressImageCorrelationId = Aeron.NULL_VALUE;
+    }
+
+    long ingressImageCorrelationId()
+    {
+        return ingressImageCorrelationId;
+    }
+
     static void checkEncodedPrincipalLength(final byte[] encodedPrincipal)
     {
         if (null != encodedPrincipal && encodedPrincipal.length > MAX_ENCODED_PRINCIPAL_LENGTH)
@@ -433,6 +455,7 @@ final class ClusterSession implements ClusterClientSession
             ", openedLogPosition=" + openedLogPosition +
             ", closedLogPosition=" + closedLogPosition +
             ", timeOfLastActivityNs=" + timeOfLastActivityNs +
+            ", ingressImageCorrelationId=" + ingressImageCorrelationId +
             ", responseStreamId=" + responseStreamId +
             ", responseChannel='" + responseChannel + '\'' +
             ", responsePublicationId=" + responsePublicationId +

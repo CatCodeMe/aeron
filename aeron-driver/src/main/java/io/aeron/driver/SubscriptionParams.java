@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,13 @@
  */
 package io.aeron.driver;
 
+import io.aeron.Aeron;
 import io.aeron.ChannelUri;
 import io.aeron.CommonContext;
 import io.aeron.driver.media.UdpChannel;
 import io.aeron.logbuffer.FrameDescriptor;
 import io.aeron.logbuffer.LogBufferDescriptor;
+import org.agrona.SystemUtil;
 
 import static io.aeron.CommonContext.*;
 
@@ -37,9 +39,13 @@ final class SubscriptionParams
     boolean isTether = true;
     boolean isResponse = false;
     InferableBoolean group = InferableBoolean.INFER;
-    int initialWindowLength;
+    int receiverWindowLength;
+    long untetheredWindowLimitTimeoutNs;
+    long untetheredLingerTimeoutNs;
+    long untetheredRestingTimeoutNs;
 
-    static SubscriptionParams getSubscriptionParams(final ChannelUri channelUri, final MediaDriver.Context context)
+    static SubscriptionParams getSubscriptionParams(
+        final ChannelUri channelUri, final MediaDriver.Context context, final int publisherTermBufferLength)
     {
         final SubscriptionParams params = new SubscriptionParams();
 
@@ -114,12 +120,46 @@ final class SubscriptionParams
         final String groupStr = channelUri.get(GROUP_PARAM_NAME);
         params.group = null != groupStr ? InferableBoolean.parse(groupStr) : context.receiverGroupConsideration();
 
-        final int initialWindowLength = UdpChannel.parseBufferLength(channelUri, RECEIVER_WINDOW_LENGTH_PARAM_NAME);
-        params.initialWindowLength = 0 != initialWindowLength ? initialWindowLength : context.initialWindowLength();
+        final int rcvWndLength = UdpChannel.parseBufferLength(channelUri, RECEIVER_WINDOW_LENGTH_PARAM_NAME);
+        params.receiverWindowLength = Configuration.receiverWindowLength(
+            0 != publisherTermBufferLength ? publisherTermBufferLength :
+            (channelUri.isIpc() ? context.ipcTermBufferLength() : context.publicationTermBufferLength()),
+            0 != rcvWndLength ? rcvWndLength : context.initialWindowLength());
 
         params.isResponse = CONTROL_MODE_RESPONSE.equals(channelUri.get(MDC_CONTROL_MODE_PARAM_NAME));
 
+        params.getUntetheredWindowLimitTimeout(channelUri, context);
+        params.getUntetheredLingerTimeout(channelUri, context);
+        params.getUntetheredRestingTimeout(channelUri, context);
         return params;
+    }
+
+    private void getUntetheredWindowLimitTimeout(final ChannelUri channelUri, final MediaDriver.Context ctx)
+    {
+        untetheredWindowLimitTimeoutNs = getTimeoutNs(
+            channelUri, UNTETHERED_WINDOW_LIMIT_TIMEOUT_PARAM_NAME, ctx.untetheredWindowLimitTimeoutNs());
+    }
+
+    private void getUntetheredLingerTimeout(final ChannelUri channelUri, final MediaDriver.Context ctx)
+    {
+        untetheredLingerTimeoutNs =
+            getTimeoutNs(channelUri, UNTETHERED_LINGER_TIMEOUT_PARAM_NAME, ctx.untetheredLingerTimeoutNs());
+        if (Aeron.NULL_VALUE == untetheredLingerTimeoutNs)
+        {
+            untetheredLingerTimeoutNs = untetheredWindowLimitTimeoutNs;
+        }
+    }
+
+    private void getUntetheredRestingTimeout(final ChannelUri channelUri, final MediaDriver.Context ctx)
+    {
+        untetheredRestingTimeoutNs = getTimeoutNs(
+            channelUri, UNTETHERED_RESTING_TIMEOUT_PARAM_NAME, ctx.untetheredRestingTimeoutNs());
+    }
+
+    private static long getTimeoutNs(final ChannelUri channelUri, final String paramName, final long defaultValue)
+    {
+        final String timeoutString = channelUri.get(paramName);
+        return null != timeoutString ? SystemUtil.parseDuration(paramName, timeoutString) : defaultValue;
     }
 
     static void validateInitialWindowForRcvBuf(
@@ -129,41 +169,42 @@ final class SubscriptionParams
         final MediaDriver.Context ctx,
         final String existingChannel)
     {
-        if (0 != channelSocketRcvbufLength && params.initialWindowLength > channelSocketRcvbufLength)
+        if (0 != channelSocketRcvbufLength && params.receiverWindowLength > channelSocketRcvbufLength)
         {
             throw new IllegalStateException(
-                "Initial window greater than SO_RCVBUF for channel: rcv-wnd=" + params.initialWindowLength +
+                "Initial window greater than SO_RCVBUF for channel: rcv-wnd=" + params.receiverWindowLength +
                 " so-rcvbuf=" + channelSocketRcvbufLength +
-                (null == existingChannel ? "" : (" existingChannel=" + existingChannel)) +
-                " channel=" + channel);
+                (null == existingChannel ? "" : (" existingChannel=" + existingChannel)) + " channel=" + channel);
         }
-        else if (0 == channelSocketRcvbufLength && params.initialWindowLength > ctx.osDefaultSocketRcvbufLength())
+        else if (0 == channelSocketRcvbufLength && params.receiverWindowLength > ctx.osDefaultSocketRcvbufLength())
         {
             throw new IllegalStateException(
-                "Initial window greater than SO_RCVBUF for channel: rcv-wnd=" + params.initialWindowLength +
+                "Initial window greater than SO_RCVBUF for channel: rcv-wnd=" + params.receiverWindowLength +
                 " so-rcvbuf=" + ctx.osDefaultSocketRcvbufLength() + " (OS default)" +
-                (null == existingChannel ? "" : (" existingChannel=" + existingChannel)) +
-                " channel=" + channel);
+                (null == existingChannel ? "" : (" existingChannel=" + existingChannel)) + " channel=" + channel);
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public String toString()
     {
-        return "SubscriptionParams{" +
-            "initialTermId=" + initialTermId +
-            ", termId=" + termId +
-            ", termOffset=" + termOffset +
-            ", sessionId=" + sessionId +
-            ", hasJoinPosition=" + hasJoinPosition +
-            ", hasSessionId=" + hasSessionId +
-            ", isReliable=" + isReliable +
-            ", isRejoin=" + isRejoin +
-            ", isSparse=" + isSparse +
-            ", isTether=" + isTether +
-            ", group=" + group +
-            '}';
+        return "SubscriptionParams" +
+            "\n{" +
+            "\n    initialTermId=" + initialTermId +
+            "\n    termId=" + termId +
+            "\n    termOffset=" + termOffset +
+            "\n    sessionId=" + sessionId +
+            "\n    hasJoinPosition=" + hasJoinPosition +
+            "\n    hasSessionId=" + hasSessionId +
+            "\n    isReliable=" + isReliable +
+            "\n    isRejoin=" + isRejoin +
+            "\n    isSparse=" + isSparse +
+            "\n    isTether=" + isTether +
+            "\n    isResponse=" + isResponse +
+            "\n    group=" + group +
+            "\n    receiverWindowLength=" + receiverWindowLength +
+            "\n    untetheredWindowLimitTimeoutNs=" + untetheredWindowLimitTimeoutNs +
+            "\n    untetheredRestingTimeoutNs=" + untetheredRestingTimeoutNs +
+            "\n    untetheredLingerTimeoutNs=" + untetheredLingerTimeoutNs +
+            "\n}";
     }
 }

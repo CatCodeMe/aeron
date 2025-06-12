@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -105,11 +105,10 @@ int aeron_archive_replay_merge_init(
         aeron_subscription_constants_t constants;
         aeron_subscription_constants(subscription, &constants);
 
-        size_t len = sizeof(AERON_IPC_CHANNEL) - 1;
-        if (strncmp(constants.channel, AERON_IPC_CHANNEL, len) == 0 ||
-            strncmp(replay_channel, AERON_IPC_CHANNEL, len) == 0 ||
-            strncmp(replay_destination, AERON_IPC_CHANNEL, len) == 0 ||
-            strncmp(live_destination, AERON_IPC_CHANNEL, len) == 0)
+        if (strncmp(constants.channel, AERON_IPC_CHANNEL, AERON_IPC_CHANNEL_LEN) == 0 ||
+            strncmp(replay_channel, AERON_IPC_CHANNEL, AERON_IPC_CHANNEL_LEN) == 0 ||
+            strncmp(replay_destination, AERON_IPC_CHANNEL, AERON_IPC_CHANNEL_LEN) == 0 ||
+            strncmp(live_destination, AERON_IPC_CHANNEL, AERON_IPC_CHANNEL_LEN) == 0)
         {
             AERON_SET_ERR(EINVAL, "%s", "IPC merging is not supported");
             return -1;
@@ -391,9 +390,8 @@ bool aeron_archive_replay_merge_is_live_added(aeron_archive_replay_merge_t *repl
 
 static int aeron_archive_replay_merge_resolve_replay_port(int *work_count_p, aeron_archive_replay_merge_t *replay_merge, long long now_ms)
 {
-    char resolved_endpoint[AERON_MAX_PATH];
-
-    int rc = aeron_subscription_resolved_endpoint(replay_merge->subscription, resolved_endpoint, AERON_MAX_PATH);
+    char resolved_endpoint[AERON_CLIENT_MAX_LOCAL_ADDRESS_STR_LEN] = { 0 };
+    int rc = aeron_subscription_resolved_endpoint(replay_merge->subscription, resolved_endpoint, AERON_URI_MAX_LENGTH);
 
     if (rc < 0)
     {
@@ -515,11 +513,11 @@ static int aeron_archive_replay_merge_replay(int *work_count_p, aeron_archive_re
 
     if (AERON_NULL_VALUE == replay_merge->active_correlation_id)
     {
-        char replay_channel[AERON_MAX_PATH + 1];
+        char replay_channel[AERON_URI_MAX_LENGTH];
 
         int64_t correlation_id = aeron_archive_next_correlation_id(replay_merge->aeron_archive);
 
-        aeron_uri_string_builder_sprint(&replay_merge->replay_channel_builder, replay_channel, AERON_MAX_PATH + 1);
+        aeron_uri_string_builder_sprint(&replay_merge->replay_channel_builder, replay_channel, sizeof(replay_channel));
 
         aeron_archive_replay_params_t replay_params;
         aeron_archive_replay_params_init(&replay_params);
@@ -723,6 +721,7 @@ static int aeron_archive_replay_merge_handle_async_destination(aeron_archive_rep
         }
         else if (rc < 0)
         {
+            replay_merge->async_destination = NULL;
             AERON_APPEND_ERR("%s", "");
             return -1;
         }

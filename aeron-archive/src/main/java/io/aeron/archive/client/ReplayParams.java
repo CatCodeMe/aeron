@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,10 @@ package io.aeron.archive.client;
 import io.aeron.Aeron;
 
 /**
- * Fluent API for setting optional replay parameters. Not threadsafe. Allows the user to configure starting position,
+ * Fluent API for setting optional replay parameters. Allows the user to configure starting position,
  * replay length, bounding counter (for a bounded replay) and the max length for file I/O operations.
+ * <p>
+ * Not threadsafe.
  */
 public class ReplayParams
 {
@@ -31,7 +33,7 @@ public class ReplayParams
     private long subscriptionRegistrationId;
 
     /**
-     * Default, initialise all values to "null"
+     * Default, initialise all values to "null".
      */
     @SuppressWarnings("this-escape")
     public ReplayParams()
@@ -40,7 +42,7 @@ public class ReplayParams
     }
 
     /**
-     * reset all value to "null", allows for an instance to be reused
+     * Reset all value to "null", allows for an instance to be reused.
      *
      * @return this for a fluent API
      */

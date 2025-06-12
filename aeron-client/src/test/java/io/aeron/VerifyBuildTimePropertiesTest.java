@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ class VerifyBuildTimePropertiesTest
             version = version.substring(0, version.indexOf('-'));
         }
 
-        final String currentVersion = JRE.currentVersion().name();
+        final String currentVersion = JRE.currentJre().name();
         assertEquals(version, currentVersion.substring(currentVersion.indexOf('_') + 1));
     }
 }

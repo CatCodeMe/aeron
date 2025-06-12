@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -250,7 +250,7 @@ public abstract class UdpChannelTransport implements AutoCloseable
         {
             if (null != statusIndicator)
             {
-                statusIndicator.setOrdered(ChannelEndpointStatus.ERRORED);
+                statusIndicator.setRelease(ChannelEndpointStatus.ERRORED);
             }
 
             CloseHelper.quietClose(sendDatagramChannel);
@@ -496,7 +496,7 @@ public abstract class UdpChannelTransport implements AutoCloseable
 
                 if (null != statusIndicator)
                 {
-                    statusIndicator.setOrdered(ChannelEndpointStatus.ACTIVE);
+                    statusIndicator.setRelease(ChannelEndpointStatus.ACTIVE);
                 }
             }
         }
@@ -504,7 +504,7 @@ public abstract class UdpChannelTransport implements AutoCloseable
         {
             if (null != statusIndicator)
             {
-                statusIndicator.setOrdered(ChannelEndpointStatus.ERRORED);
+                statusIndicator.setRelease(ChannelEndpointStatus.ERRORED);
             }
 
             final String message = "re-resolve endpoint channel error - " + ex.getMessage() +

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
  */
 class RecordingSession implements Session
 {
+    @SuppressWarnings("JavadocVariable")
     enum State
     {
         INIT, RECORDING, INACTIVE, STOPPED
@@ -98,7 +99,7 @@ class RecordingSession implements Session
     /**
      * {@inheritDoc}
      */
-    public void abort()
+    public void abort(final String reason)
     {
         isAborted = true;
     }
@@ -233,7 +234,7 @@ class RecordingSession implements Session
             final int workCount = image.blockPoll(recordingWriter, blockLengthLimit);
             if (workCount > 0)
             {
-                this.position.setOrdered(recordingWriter.position());
+                this.position.setRelease(recordingWriter.position());
             }
             else if (image.isEndOfStream() || image.isClosed())
             {
@@ -274,7 +275,10 @@ class RecordingSession implements Session
 
     private void state(final State newState, final String reason)
     {
-        logStateChange(state, newState, recordingId,
+        logStateChange(
+            state,
+            newState,
+            recordingId,
             null != image ? image.position() : NULL_POSITION,
             null == reason ? "" : reason);
         state = newState;

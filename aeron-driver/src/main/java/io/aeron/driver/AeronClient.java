@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ final class AeronClient implements DriverManagedResource
 
             if (!closedByCommand)
             {
-                clientTimeouts.incrementOrdered();
+                clientTimeouts.incrementRelease();
                 conductor.clientTimeout(clientId);
             }
 
@@ -103,12 +103,12 @@ final class AeronClient implements DriverManagedResource
 
     void timeOfLastKeepaliveMs(final long nowMs)
     {
-        heartbeatTimestamp.setOrdered(nowMs);
+        heartbeatTimestamp.setRelease(nowMs);
     }
 
     void onClosedByCommand()
     {
         closedByCommand = true;
-        heartbeatTimestamp.setOrdered(0);
+        heartbeatTimestamp.setRelease(0);
     }
 }

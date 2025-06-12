@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package io.aeron.config.validation;
 import io.aeron.utility.ElementIO;
 
 /**
- * A gradle task for validating the C code looks as expected, based on the contents of the @Config java annotations
+ * A gradle task for validating the C code looks as expected, based on the contents of the @Config java annotations.
  */
 public class ValidateConfigExpectationsTask
 {
@@ -26,9 +26,7 @@ public class ValidateConfigExpectationsTask
      * @param args
      * Arg 0 should be the location of a config-info.xml file with a list of ConfigInfo objects
      * Arg 1 should be the location of the C source code
-     *
-     * @throws Exception
-     * it sure does
+     * @throws Exception on IO failure.
      */
     public static void main(final String[] args) throws Exception
     {

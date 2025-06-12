@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -111,6 +111,10 @@ public final class TestNode implements AutoCloseable
             for (int i = 0; i < services.length; i++)
             {
                 final ClusteredServiceContainer.Context ctx = context.serviceContainerContext.clone();
+
+                final int clusterId = context.consensusModuleContext.clusterId();
+                final int memberId = context.consensusModuleContext.clusterMemberId();
+
                 ctx.aeronDirectoryName(aeronDirectoryName)
                     .archiveContext(archiveContext.clone())
                     .terminationHook(ClusterTests.terminationHook(
@@ -119,6 +123,7 @@ public final class TestNode implements AutoCloseable
                     .markFileDir(context.consensusModuleContext.markFileDir())
                     .clusteredService(services[i])
                     .snapshotDurationThresholdNs(TimeUnit.MILLISECONDS.toNanos(100))
+                    .serviceName("clustered-service-" + clusterId + "-" + memberId + "-" + i)
                     .serviceId(i);
                 containers[i] = ClusteredServiceContainer.launch(ctx);
             }
@@ -800,6 +805,9 @@ public final class TestNode implements AutoCloseable
 
     public static class MessageTrackingService extends TestNode.TestService
     {
+        public static final int TIMER_MESSAGES_PER_INGRESS = 2;
+        public static final int SERVICE_MESSAGES_PER_INGRESS = 3;
+
         private static volatile boolean delaySessionMessageProcessing;
         private static final byte SNAPSHOT_COUNTERS = (byte)1;
         private static final byte SNAPSHOT_CLIENT_MESSAGES = (byte)2;
@@ -958,7 +966,7 @@ public final class TestNode implements AutoCloseable
                 clientMessages.addInt(messageId);
 
                 // Send 3 service messages
-                for (int i = 0; i < 3; i++)
+                for (int i = 0; i < SERVICE_MESSAGES_PER_INGRESS; i++)
                 {
                     messageBuffer.putInt(0, ++nextServiceMessageNumber, LITTLE_ENDIAN);
 
@@ -970,7 +978,7 @@ public final class TestNode implements AutoCloseable
                 }
 
                 // Schedule two timers
-                for (int i = 0; i < 2; i++)
+                for (int i = 0; i < TIMER_MESSAGES_PER_INGRESS; i++)
                 {
                     final long timerId = --nextTimerCorrelationId;
                     idleStrategy.reset();

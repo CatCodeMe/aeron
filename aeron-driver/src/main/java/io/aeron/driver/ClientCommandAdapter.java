@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,9 @@ final class ClientCommandAdapter implements ControlledMessageHandler
     private final PublicationMessageFlyweight publicationMsgFlyweight = new PublicationMessageFlyweight();
     private final SubscriptionMessageFlyweight subscriptionMsgFlyweight = new SubscriptionMessageFlyweight();
     private final CorrelatedMessageFlyweight correlatedMsgFlyweight = new CorrelatedMessageFlyweight();
-    private final RemoveMessageFlyweight removeMsgFlyweight = new RemoveMessageFlyweight();
+    private final RemoveCounterFlyweight removeCounterFlyweight = new RemoveCounterFlyweight();
+    private final RemovePublicationFlyweight removePublicationFlyweight = new RemovePublicationFlyweight();
+    private final RemoveSubscriptionFlyweight removeSubscriptionFlyweight = new RemoveSubscriptionFlyweight();
     private final DestinationMessageFlyweight destinationMsgFlyweight = new DestinationMessageFlyweight();
     private final CounterMessageFlyweight counterMsgFlyweight = new CounterMessageFlyweight();
     private final StaticCounterMessageFlyweight staticCounterMessageFlyweight = new StaticCounterMessageFlyweight();
@@ -102,11 +104,13 @@ final class ClientCommandAdapter implements ControlledMessageHandler
 
                 case REMOVE_PUBLICATION:
                 {
-                    removeMsgFlyweight.wrap(buffer, index);
-                    removeMsgFlyweight.validateLength(msgTypeId, length);
+                    removePublicationFlyweight.wrap(buffer, index);
 
-                    correlationId = removeMsgFlyweight.correlationId();
-                    conductor.onRemovePublication(removeMsgFlyweight.registrationId(), correlationId);
+                    correlationId = removePublicationFlyweight.correlationId();
+                    conductor.onRemovePublication(
+                        removePublicationFlyweight.registrationId(),
+                        correlationId,
+                        removePublicationFlyweight.revoke(length));
                     break;
                 }
 
@@ -147,11 +151,11 @@ final class ClientCommandAdapter implements ControlledMessageHandler
 
                 case REMOVE_SUBSCRIPTION:
                 {
-                    removeMsgFlyweight.wrap(buffer, index);
-                    removeMsgFlyweight.validateLength(msgTypeId, length);
+                    removeSubscriptionFlyweight.wrap(buffer, index);
+                    removeSubscriptionFlyweight.validateLength(msgTypeId, length);
 
-                    correlationId = removeMsgFlyweight.correlationId();
-                    conductor.onRemoveSubscription(removeMsgFlyweight.registrationId(), correlationId);
+                    correlationId = removeSubscriptionFlyweight.correlationId();
+                    conductor.onRemoveSubscription(removeSubscriptionFlyweight.registrationId(), correlationId);
                     break;
                 }
 
@@ -212,11 +216,11 @@ final class ClientCommandAdapter implements ControlledMessageHandler
 
                 case REMOVE_COUNTER:
                 {
-                    removeMsgFlyweight.wrap(buffer, index);
-                    removeMsgFlyweight.validateLength(msgTypeId, length);
+                    removeCounterFlyweight.wrap(buffer, index);
+                    removeCounterFlyweight.validateLength(msgTypeId, length);
 
-                    correlationId = removeMsgFlyweight.correlationId();
-                    conductor.onRemoveCounter(removeMsgFlyweight.registrationId(), correlationId);
+                    correlationId = removeCounterFlyweight.correlationId();
+                    conductor.onRemoveCounter(removeCounterFlyweight.registrationId(), correlationId);
                     break;
                 }
 
@@ -362,7 +366,7 @@ final class ClientCommandAdapter implements ControlledMessageHandler
         {
             clientProxy.onError(correlationId, ((ControlProtocolException)error).errorCode(), error.getMessage());
         }
-        else if (error instanceof StorageSpaceException || StorageSpaceException.isStorageSpaceError(error))
+        else if (StorageSpaceException.isStorageSpaceError(error))
         {
             clientProxy.onError(correlationId, STORAGE_SPACE, error.getMessage());
         }

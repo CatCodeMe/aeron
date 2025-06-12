@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,6 +66,12 @@
 
 #define AERON_COUNTER_CHANNEL_MDC_NUM_DESTINATIONS_NAME "mdc-num-dest"
 #define AERON_COUNTER_CHANNEL_NUM_DESTINATIONS_TYPE_ID (18)
+
+#define AERON_COUNTER_SENDER_NAKS_RECEIVED_NAME "snd-naks-received"
+#define AERON_COUNTER_SENDER_NAKS_RECEIVED_TYPE_ID  (19)
+
+#define AERON_COUNTER_RECEIVER_NAKS_SENT_NAME "rcv-naks-sent"
+#define AERON_COUNTER_RECEIVER_NAKS_SENT_TYPE_ID  (20)
 
 // AERON_EF_VI reserved range 50-74
 // AERON_DPDK reserved range 75-99

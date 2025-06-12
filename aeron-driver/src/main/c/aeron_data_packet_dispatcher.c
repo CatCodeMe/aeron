@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -500,7 +500,7 @@ int aeron_data_packet_dispatcher_on_setup(
                 if (destination->conductor_fields.udp_channel->is_multicast &&
                     destination->conductor_fields.udp_channel->multicast_ttl < header->ttl)
                 {
-                    aeron_counter_ordered_increment(endpoint->possible_ttl_asymmetry_counter, 1);
+                    aeron_counter_increment_release(endpoint->possible_ttl_asymmetry_counter);
                 }
 
                 if (aeron_data_packet_dispatcher_create_publication(

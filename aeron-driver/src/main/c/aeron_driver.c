@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,49 +54,6 @@ void aeron_log_func_none(const char *str)
 {
 }
 
-#ifndef HAVE_ARC4RANDOM
-static int aeron_dev_random_fd = -1;
-#endif
-
-int32_t aeron_randomised_int32(void)
-{
-    int32_t result;
-
-#ifdef HAVE_ARC4RANDOM
-    uint32_t value = arc4random();
-
-    memcpy(&result, &value, sizeof(int32_t));
-#elif defined(__linux__) || defined(__CYGWIN__)
-    if (-1 == aeron_dev_random_fd)
-    {
-        if ((aeron_dev_random_fd = open("/dev/urandom", O_RDONLY)) < 0)
-        {
-            fprintf(stderr, "could not open /dev/urandom (%d): %s\n", errno, strerror(errno));
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    if (sizeof(result) != read(aeron_dev_random_fd, &result, sizeof(result)))
-    {
-        fprintf(stderr, "Failed to read from aeron_dev_random (%d): %s\n", errno, strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-#elif defined(AERON_COMPILER_MSVC)
-    uint32_t value;
-    if (0 == rand_s(&value))
-    {
-        memcpy(&result, &value, sizeof(int32_t));
-    }
-    else
-    {
-        result = (int32_t)(rand() / (double)RAND_MAX * INT_MAX);
-    }
-#else
-    result = (int32_t)(rand() / (double)RAND_MAX * INT_MAX);
-#endif
-    return result;
-}
-
 static void error_log_reader_save_to_file(
     int32_t observation_count,
     int64_t first_observation_timestamp,
@@ -106,8 +63,8 @@ static void error_log_reader_save_to_file(
     void *clientd)
 {
     FILE *saved_errors_file = (FILE *)clientd;
-    char first_datestamp[AERON_MAX_PATH];
-    char last_datestamp[AERON_MAX_PATH];
+    char first_datestamp[AERON_FORMAT_DATE_MAX_LENGTH];
+    char last_datestamp[AERON_FORMAT_DATE_MAX_LENGTH];
 
     aeron_format_date(first_datestamp, sizeof(first_datestamp) - 1, first_observation_timestamp);
     aeron_format_date(last_datestamp, sizeof(last_datestamp) - 1, last_observation_timestamp);
@@ -123,7 +80,7 @@ static void error_log_reader_save_to_file(
 
 int aeron_report_existing_errors(aeron_mapped_file_t *cnc_map, const char *aeron_dir)
 {
-    char buffer[AERON_MAX_PATH * 2];
+    char buffer[AERON_MAX_PATH];
     int result = 0;
 
     aeron_cnc_metadata_t *metadata = (aeron_cnc_metadata_t *)cnc_map->addr;
@@ -131,7 +88,7 @@ int aeron_report_existing_errors(aeron_mapped_file_t *cnc_map, const char *aeron
     if (aeron_semantic_version_major(AERON_CNC_VERSION) == aeron_semantic_version_major(metadata->cnc_version) &&
         aeron_error_log_exists(aeron_cnc_error_log_buffer(cnc_map->addr), (size_t)metadata->error_log_buffer_length))
     {
-        char datestamp[AERON_MAX_PATH];
+        char datestamp[AERON_FORMAT_DATE_MAX_LENGTH];
         FILE *saved_errors_file = NULL;
 
         aeron_format_date(datestamp, sizeof(datestamp) - 1, aeron_epoch_clock());
@@ -146,7 +103,7 @@ int aeron_report_existing_errors(aeron_mapped_file_t *cnc_map, const char *aeron
             *invalid_win_symbol = '-';
         }
 
-        snprintf(buffer, sizeof(buffer) - 1, "%s-%s-error.log", aeron_dir, datestamp);
+        snprintf(buffer, sizeof(buffer), "%s-%s-error.log", aeron_dir, datestamp);
 
         if ((saved_errors_file = fopen(buffer, "w")) != NULL)
         {
@@ -184,15 +141,15 @@ int aeron_driver_ensure_dir_is_recreated(aeron_driver_context_t *context)
         if (context->warn_if_dirs_exist)
         {
             log_func = aeron_log_func_stderr;
-            snprintf(buffer, sizeof(buffer) - 1, "WARNING: %s exists", dirname);
+            snprintf(buffer, sizeof(buffer), "WARNING: %s exists", dirname);
             log_func(buffer);
         }
 
         if (context->dirs_delete_on_start)
         {
-            if (0 != aeron_delete_directory(context->aeron_dir))
+            if (0 != aeron_delete_directory(dirname))
             {
-                snprintf(buffer, sizeof(buffer) - 1, "INFO: failed to delete: %s", context->aeron_dir);
+                snprintf(buffer, sizeof(buffer), "INFO: failed to delete: %s", dirname);
                 log_func(buffer);
                 return -1;
             }
@@ -201,7 +158,13 @@ int aeron_driver_ensure_dir_is_recreated(aeron_driver_context_t *context)
         {
             aeron_mapped_file_t cnc_mmap = { .addr = NULL, .length = 0 };
 
-            aeron_cnc_resolve_filename(dirname, filename, sizeof(filename));
+            if (aeron_cnc_resolve_filename(dirname, filename, sizeof(filename)) < 0)
+            {
+                snprintf(buffer, sizeof(buffer), "INFO: failed to resole CnC file: path=%s", dirname);
+                log_func(buffer);
+                return -1;
+            }
+
             if (aeron_map_existing_file(&cnc_mmap, filename) < 0)
             {
                 if (ENOENT == aeron_errcode())
@@ -210,14 +173,14 @@ int aeron_driver_ensure_dir_is_recreated(aeron_driver_context_t *context)
                 }
                 else
                 {
-                    snprintf(buffer, sizeof(buffer) - 1, "INFO: failed to mmap CnC file: %s", filename);
+                    snprintf(buffer, sizeof(buffer), "INFO: failed to mmap CnC file: %s", filename);
                     log_func(buffer);
                     return -1;
                 }
             }
             else
             {
-                snprintf(buffer, sizeof(buffer) - 1, "INFO: Aeron CnC file %s exists", filename);
+                snprintf(buffer, sizeof(buffer), "INFO: Aeron CnC file %s exists", filename);
                 log_func(buffer);
 
                 if (aeron_is_driver_active_with_cnc(
@@ -244,9 +207,9 @@ int aeron_driver_ensure_dir_is_recreated(aeron_driver_context_t *context)
         }
     }
 
-    if (aeron_mkdir_recursive(context->aeron_dir, S_IRWXU | S_IRWXG | S_IRWXO) != 0)
+    if (aeron_mkdir_recursive(dirname, S_IRWXU | S_IRWXG | S_IRWXO) != 0)
     {
-        AERON_SET_ERR(errno, "Failed to mkdir aeron directory: %s", context->aeron_dir);
+        AERON_APPEND_ERR("Failed to mkdir aeron directory: %s", dirname);
         return -1;
     }
 
@@ -258,7 +221,7 @@ int aeron_driver_ensure_dir_is_recreated(aeron_driver_context_t *context)
 
     if (aeron_mkdir_recursive(filename, S_IRWXU | S_IRWXG | S_IRWXO) != 0)
     {
-        AERON_SET_ERR(errno, "Failed to mkdir publications directory: %s", context->aeron_dir);
+        AERON_APPEND_ERR("Failed to mkdir publications directory: %s", filename);
         return -1;
     }
 
@@ -270,7 +233,7 @@ int aeron_driver_ensure_dir_is_recreated(aeron_driver_context_t *context)
 
     if (aeron_mkdir_recursive(filename, S_IRWXU | S_IRWXG | S_IRWXO) != 0)
     {
-        AERON_SET_ERR(errno, "Failed to mkdir images directory: %s", context->aeron_dir);
+        AERON_SET_ERR(errno, "Failed to mkdir images directory: %s", filename);
         return -1;
     }
 
@@ -289,6 +252,7 @@ void aeron_driver_fill_cnc_metadata(aeron_driver_context_t *context)
     metadata->client_liveness_timeout = (int64_t)context->client_liveness_timeout_ns;
     metadata->start_timestamp = context->epoch_clock();
     metadata->pid = getpid();
+    metadata->file_page_size = (int32_t)context->file_page_size;
 
     context->to_driver_buffer = aeron_cnc_to_driver_buffer(metadata);
     context->to_clients_buffer = aeron_cnc_to_clients_buffer(metadata);
@@ -332,7 +296,11 @@ int aeron_driver_create_cnc_file(aeron_driver_t *driver)
     driver->context->cnc_map.addr = NULL;
     driver->context->cnc_map.length = cnc_file_length;
 
-    snprintf(buffer, sizeof(buffer) - 1, "%s/%s", driver->context->aeron_dir, AERON_CNC_FILE);
+    if(aeron_file_resolve(driver->context->aeron_dir, AERON_CNC_FILE, buffer, sizeof(buffer)) < 0)
+    {
+        AERON_APPEND_ERR("Failed to resolve CnC file path: dir=%s, filename=%s", driver->context->aeron_dir, AERON_CNC_FILE);
+        return -1;
+    }
 
     if (aeron_map_new_file(&driver->context->cnc_map, buffer, true) < 0)
     {
@@ -566,6 +534,8 @@ void aeron_driver_context_print_configuration(aeron_driver_context_t *context)
     fprintf(fpout, "\n    nak_unicast_delay_ns=%" PRIu64, context->nak_unicast_delay_ns);
     fprintf(fpout, "\n    nak_unicast_retry_delay_ratio=%" PRIu64, context->nak_unicast_retry_delay_ratio);
     fprintf(fpout, "\n    nak_multicast_max_backoff_ns=%" PRIu64, context->nak_multicast_max_backoff_ns);
+    fprintf(fpout, "\n    unicast_flow_control_rrwm=%" PRIu64, (uint64_t)context->unicast_flow_control_rrwm);
+    fprintf(fpout, "\n    multicast_flow_control_rrwm=%" PRIu64, (uint64_t)context->multicast_flow_control_rrwm);
     fprintf(fpout, "\n    nak_multicast_group_size=%" PRIu64, (uint64_t)context->nak_multicast_group_size);
     fprintf(fpout, "\n    status_message_timeout_ns=%" PRIu64, context->status_message_timeout_ns);
     fprintf(fpout, "\n    counter_free_to_reuse_ns=%" PRIu64, context->counter_free_to_reuse_ns);
@@ -927,11 +897,11 @@ int aeron_driver_init(aeron_driver_t **driver, aeron_driver_context_t *context)
 
     _driver->context->receiver_proxy = &_driver->receiver.receiver_proxy;
 
-    aeron_counter_set_ordered(
+    aeron_counter_set_release(
         aeron_system_counter_addr(context->system_counters, AERON_SYSTEM_COUNTER_AERON_VERSION),
         aeron_semantic_version_compose(aeron_version_major(), aeron_version_minor(), aeron_version_patch()));
 
-    aeron_counter_set_ordered(
+    aeron_counter_set_release(
         aeron_system_counter_addr(context->system_counters, AERON_SYSTEM_COUNTER_BYTES_CURRENTLY_MAPPED),
         (int64_t)(_driver->context->cnc_map.length + _driver->context->loss_report_length));
 
@@ -1095,17 +1065,18 @@ int aeron_driver_start(aeron_driver_t *driver, bool manual_main_loop)
     }
     else
     {
-        if (NULL != driver->runners[0].on_start)
+        aeron_agent_runner_t first_runner = driver->runners[0];
+        if (NULL != first_runner.on_start)
         {
-            driver->runners[0].on_start(driver->runners[0].on_start_state, driver->runners[0].role_name);
+            first_runner.on_start(first_runner.on_start_state, first_runner.role_name);
         }
 
-        driver->runners[0].state = AERON_AGENT_STATE_MANUAL;
+        first_runner.state = AERON_AGENT_STATE_MANUAL;
     }
 
     for (int i = 1; i < AERON_AGENT_RUNNER_MAX; i++)
     {
-        if (driver->runners[i].state == AERON_AGENT_STATE_INITED)
+        if (AERON_AGENT_STATE_INITED == driver->runners[i].state)
         {
             if (aeron_agent_start(&driver->runners[i]) < 0)
             {

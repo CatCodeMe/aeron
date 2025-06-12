@@ -1,5 +1,5 @@
 #
-# Copyright 2014-2024 Real Logic Limited.
+# Copyright 2014-2025 Real Logic Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -75,5 +75,6 @@ if (AERON_UNIT_TESTS)
     aeron_client_wrapper_test(controlledFragmentAssemblerTest ControlledFragmentAssemblerTest.cpp)
     aeron_client_wrapper_test(imageControlledFragmentAssemblerTest ImageControlledFragmentAssemblerTest.cpp)
     aeron_client_wrapper_test(rejectImageTest RejectImageTest.cpp)
+    aeron_client_wrapper_test(publicationRevokeTest PublicationRevokeTest.cpp)
 
 endif ()

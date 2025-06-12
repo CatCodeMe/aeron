@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,8 @@
 typedef enum aeron_send_channel_endpoint_status_enum
 {
     AERON_SEND_CHANNEL_ENDPOINT_STATUS_ACTIVE,
-    AERON_SEND_CHANNEL_ENDPOINT_STATUS_CLOSING
+    AERON_SEND_CHANNEL_ENDPOINT_STATUS_CLOSING,
+    AERON_SEND_CHANNEL_ENDPOINT_STATUS_CLOSED
 }
 aeron_send_channel_endpoint_status_t;
 
@@ -65,6 +66,9 @@ typedef struct aeron_send_channel_endpoint_stct
     aeron_port_manager_t *port_manager;
     aeron_clock_cache_t *cached_clock;
     int64_t time_of_last_sm_ns;
+
+    aeron_driver_nak_message_func_t on_nak_message;
+
     uint8_t padding[AERON_CACHE_LINE_LENGTH];
 }
 aeron_send_channel_endpoint_t;
@@ -80,8 +84,7 @@ int aeron_send_channel_endpoint_create(
 int aeron_send_channel_endpoint_delete(
     aeron_counters_manager_t *counters_manager, aeron_send_channel_endpoint_t *endpoint);
 
-void aeron_send_channel_endpoint_incref(void *clientd);
-void aeron_send_channel_endpoint_decref(void *clientd);
+int aeron_send_channel_endpoint_close(aeron_send_channel_endpoint_t *endpoint);
 
 int aeron_send_channel_send(
     aeron_send_channel_endpoint_t *endpoint,
@@ -148,6 +151,11 @@ int aeron_send_channel_endpoint_resolution_change(
     aeron_send_channel_endpoint_t *endpoint,
     const char *endpoint_name,
     struct sockaddr_storage *new_addr);
+
+int aeron_send_channel_endpoint_matches_tag(
+    aeron_send_channel_endpoint_t *endpoint,
+    aeron_udp_channel_t *channel,
+    bool *has_match);
 
 inline void aeron_send_channel_endpoint_sender_release(aeron_send_channel_endpoint_t *endpoint)
 {

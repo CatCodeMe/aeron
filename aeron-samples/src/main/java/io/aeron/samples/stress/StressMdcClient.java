@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ public class StressMdcClient implements Agent
     private Counter clientSendCount;
 
     /**
-     * Construct Stress Client
+     * Construct Stress Client.
      *
      * @param serverAddress server address to connect to.
      * @param clientAddress local address to get responses.

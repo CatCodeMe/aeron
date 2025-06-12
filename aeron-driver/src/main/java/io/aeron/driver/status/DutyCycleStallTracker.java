@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,11 +84,11 @@ public class DutyCycleStallTracker extends DutyCycleTracker
     {
         if (!maxCycleTime.isClosed())
         {
-            maxCycleTime.proposeMaxOrdered(durationNs);
+            maxCycleTime.proposeMaxRelease(durationNs);
 
             if (durationNs > cycleTimeThresholdNs)
             {
-                cycleTimeThresholdExceededCount.incrementOrdered();
+                cycleTimeThresholdExceededCount.incrementRelease();
             }
         }
     }

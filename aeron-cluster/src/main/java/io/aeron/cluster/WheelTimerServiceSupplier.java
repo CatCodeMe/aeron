@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 import static org.agrona.BitUtil.findNextPositivePowerOfTwo;
 
 /**
- * Supplies an instance of a {@link WheelTimerService} based on the configuration given to the constructor
+ * Supplies an instance of a {@link WheelTimerService} based on the configuration given to the constructor.
  */
 public class WheelTimerServiceSupplier implements TimerServiceSupplier
 {

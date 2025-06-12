@@ -1,5 +1,5 @@
 #
-# Copyright 2014-2024 Real Logic Limited.
+# Copyright 2014-2025 Real Logic Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,14 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-cmake_minimum_required(VERSION 3.26 FATAL_ERROR)
-cmake_policy(VERSION 3.26)
-if(COMMAND cmake_policy)
-    cmake_policy(SET CMP0003 NEW)
-endif(COMMAND cmake_policy)
-if(POLICY CMP0135)
-    cmake_policy(SET CMP0135 NEW)
-endif()
+cmake_minimum_required(VERSION 3.30 FATAL_ERROR)
+cmake_policy(VERSION 3.30)
+cmake_policy(SET CMP0003 NEW)
+cmake_policy(SET CMP0135 NEW)
 
 if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
     message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory)"
@@ -150,8 +146,10 @@ if (UNIX)
     endif (CXX_WARNINGS_AS_ERRORS)
 
     if (SANITISE_BUILD)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=leak -fsanitize=undefined -DAERON_SANITIZE_ENABLED")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=leak -fsanitize=undefined -DAERON_SANITIZE_ENABLED")
+        if (NOT DEFINED APPLE)
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=leak -fsanitize=undefined -DAERON_SANITIZE_ENABLED")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=leak -fsanitize=undefined -DAERON_SANITIZE_ENABLED")
+        endif ()
     endif (SANITISE_BUILD)
 
     if (COVERAGE_BUILD)
@@ -165,6 +163,11 @@ if (APPLE)
     add_compile_options(-Wsign-compare)
     add_definitions(-DDarwin)
     add_compile_options(-Wno-deprecated-register)
+
+    if (SANITISE_BUILD)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=undefined -DAERON_SANITIZE_ENABLED")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=undefined -DAERON_SANITIZE_ENABLED")
+    endif (SANITISE_BUILD)
 elseif (CYGWIN)
     add_definitions(-DWIN32)
     if (AERON_TESTS)
@@ -297,12 +300,7 @@ if (AERON_BUILD_SAMPLES)
         URL ${CMAKE_CURRENT_SOURCE_DIR}/cppbuild/HdrHistogram_c-0.11.8.zip
         URL_MD5 e993a4a08ad084ea0a895e7b2502de99)
 
-    FetchContent_GetProperties(hdr_histogram)
-    if(NOT hdr_histogram_POPULATED)
-        FetchContent_Populate(hdr_histogram)
-        add_subdirectory(${hdr_histogram_SOURCE_DIR} ${hdr_histogram_BINARY_DIR} EXCLUDE_FROM_ALL)
-    endif()
-#    FetchContent_MakeAvailable(hdr_histogram)
+    FetchContent_MakeAvailable(hdr_histogram)
 endif ()
 
 add_subdirectory(${AERON_CLIENT_SOURCE_PATH})

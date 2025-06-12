@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -187,6 +187,60 @@ class NameReResolutionTest
             anyInt(),
             eq(BitUtil.SIZE_OF_INT),
             any(Header.class));
+    }
+
+    @SlowTest
+    @Test
+    @InterruptAfter(30)
+    void shouldReResolveEndpointOnNotConnectedWhenNamePointsBackAtTheOriginalAddress()
+    {
+        final long initialResolutionChanges = countersReader.getCounterValue(RESOLUTION_CHANGES.id());
+
+        buffer.putInt(0, 1);
+
+        subscription = client.addSubscription(FIRST_SUBSCRIPTION_URI, STREAM_ID);
+        publication = client.addPublication(PUBLICATION_URI, STREAM_ID);
+
+        Tests.awaitConnected(publication);
+        Tests.awaitConnected(subscription);
+
+        while (publication.offer(buffer, 0, BitUtil.SIZE_OF_INT) < 0L)
+        {
+            Tests.yieldingIdle("No message offer to first subscription");
+        }
+
+        while (subscription.poll(handler, 1) <= 0)
+        {
+            Tests.yieldingIdle("No message received on first subscription");
+        }
+
+        subscription.close();
+
+        // wait for disconnect to ensure we stay in lock step
+        while (publication.isConnected())
+        {
+            Tests.sleep(10);
+        }
+
+        subscription = client.addSubscription(SECOND_SUBSCRIPTION_URI, STREAM_ID);
+
+        assertTrue(updateNameResolutionStatus(countersReader, ENDPOINT_NAME, USE_RE_RESOLUTION_HOST));
+        Tests.awaitConnected(subscription);
+        Tests.awaitCounterDelta(countersReader, RESOLUTION_CHANGES.id(), initialResolutionChanges, 1);
+
+        subscription.close();
+
+        // wait for disconnect to ensure we stay in lock step
+        while (publication.isConnected())
+        {
+            Tests.sleep(10);
+        }
+
+        subscription = client.addSubscription(FIRST_SUBSCRIPTION_URI, STREAM_ID);
+
+        assertTrue(updateNameResolutionStatus(countersReader, ENDPOINT_NAME, USE_INITIAL_RESOLUTION_HOST));
+        Tests.awaitConnected(subscription);
+        Tests.awaitCounterDelta(countersReader, RESOLUTION_CHANGES.id(), initialResolutionChanges, 2);
     }
 
     @SlowTest
@@ -522,6 +576,54 @@ class NameReResolutionTest
                 }
                 while (System.nanoTime() < deadlineNs);
             }
+        }
+    }
+
+    @Test
+    @SlowTest
+    @InterruptAfter(10)
+    void shouldHandleTaggedSubscriptionsAddressWithReResolutionToMdcPublications()
+    {
+        final String taggedUri = SUBSCRIPTION_DYNAMIC_MDC_URI + "|tags=22701";
+
+        subscription = client.addSubscription(taggedUri, STREAM_ID);
+        assertFalse(subscription.isConnected());
+
+        assertTrue(updateNameResolutionStatus(countersReader, CONTROL_NAME, USE_RE_RESOLUTION_HOST));
+
+        publication = client.addPublication(SECOND_PUBLICATION_DYNAMIC_MDC_URI, STREAM_ID);
+
+        Tests.awaitConnected(subscription);
+
+        try (Subscription taggedSub1 = client.addSubscription("aeron:udp?tags=22701", STREAM_ID);
+            Subscription taggedSub2 = client.addSubscription(taggedUri, STREAM_ID))
+        {
+            Tests.awaitConnected(taggedSub1);
+            Tests.awaitConnected(taggedSub2);
+        }
+    }
+
+    @Test
+    @SlowTest
+    @InterruptAfter(10)
+    void shouldHandleTaggedPublication()
+    {
+        final String taggedUri = PUBLICATION_URI + "|tags=22701";
+
+        publication = client.addPublication(taggedUri, STREAM_ID);
+        assertFalse(publication.isConnected());
+
+        assertTrue(updateNameResolutionStatus(countersReader, ENDPOINT_NAME, USE_RE_RESOLUTION_HOST));
+
+        subscription = client.addSubscription(SECOND_SUBSCRIPTION_URI, STREAM_ID);
+
+        Tests.awaitConnected(publication);
+
+        try (Publication taggedPub1 = client.addPublication("aeron:udp?tags=22701", STREAM_ID);
+            Publication taggedPub2 = client.addPublication(taggedUri, STREAM_ID))
+        {
+            Tests.awaitConnected(taggedPub1);
+            Tests.awaitConnected(taggedPub2);
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,27 +16,27 @@
 package io.aeron.version;
 
 /**
- * version information for a specific component
+ * Version information for a specific component.
  */
 public interface Version
 {
-     /**
-      * @return     major version portion
-      */
+    /**
+     * @return major version portion.
+     */
     int majorVersion();
 
-     /**
-      * @return     minor version portion
-      */
+    /**
+     * @return minor version portion.
+     */
     int minorVersion();
 
-     /**
-      * @return     patched version portion
-      */
+    /**
+     * @return patched version portion.
+     */
     int patchVersion();
 
-     /**
-      * @return     git SHA
-      */
+    /**
+     * @return git SHA.
+     */
     String gitSha();
 }

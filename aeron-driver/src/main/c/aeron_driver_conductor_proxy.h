@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -171,6 +171,8 @@ void aeron_driver_conductor_proxy_on_release_resource(
     aeron_driver_conductor_proxy_t *conductor_proxy,
     void *managed_resource,
     aeron_driver_conductor_resource_type_t resource_type);
+
+#define AERON_COMMAND_PUBLICATION_ERROR_MAX_LENGTH (sizeof(aeron_command_publication_error_t) + AERON_ERROR_MAX_TEXT_LENGTH)
 
 void aeron_driver_conductor_proxy_on_publication_error(
     aeron_driver_conductor_proxy_t *conductor_proxy,

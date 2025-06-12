@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -608,11 +608,12 @@ class ClusterBackupTest
     }
 
     @Test
-    @InterruptAfter(30)
+    @InterruptAfter(60)
     void shouldBackupClusterAndJoinLive()
     {
         final TestCluster cluster = aCluster().withStaticNodes(3).start();
         systemTestWatcher.cluster(cluster);
+        final TestNode leader = cluster.awaitLeader();
 
         cluster.connectClient();
         cluster.sendMessages(100);
@@ -620,9 +621,10 @@ class ClusterBackupTest
         cluster.startClusterBackupNode(true);
 
         cluster.sendMessages(100);
+        cluster.awaitServiceMessageCount(leader, 200);
 
         cluster.awaitBackupState(ClusterBackup.State.BACKING_UP);
-        cluster.awaitBackupLiveLogPosition(cluster.findLeader().service().cluster().logPosition());
+        cluster.awaitBackupLiveLogPosition(leader.service().cluster().logPosition());
         cluster.stopAllNodes();
 
         final TestNode node = cluster.startStaticNodeFromBackup();

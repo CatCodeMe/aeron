@@ -1,5 +1,5 @@
 #
-# Copyright 2014-2024 Real Logic Limited.
+# Copyright 2014-2025 Real Logic Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ if (AERON_UNIT_TESTS)
     aeron_c_client_test(controlled_fragment_assembler_test aeron_controlled_fragment_assembler_test.cpp)
     aeron_c_client_test(controlled_image_fragment_assembler_test aeron_controlled_image_fragment_assembler_test.cpp)
     aeron_c_client_test(aeron_fileutil_test util/aeron_fileutil_test.cpp)
-    aeron_c_client_test(uri_test aeron_uri_test.cpp)
+    aeron_c_client_test(aeron_uri_test aeron_uri_test.cpp)
     aeron_c_client_test(version_test aeron_version_test.cpp)
     aeron_c_client_test(bitutil_test util/aeron_bitutil_test.cpp)
     aeron_c_client_test(deque_test util/aeron_deque_test.cpp)

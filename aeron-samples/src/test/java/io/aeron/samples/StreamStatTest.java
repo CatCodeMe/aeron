@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -151,7 +151,7 @@ class StreamStatTest
 
         final Subscription sub5 = aeron.addSubscription(pub4.channel(), pub4.streamId());
         assertNotSame(sub4, sub5);
-        Tests.awaitConnected(sub4);
+        Tests.awaitConnected(sub5);
         final CountingFragmentHandler sub1Handler = new CountingFragmentHandler(sub1);
         final CountingFragmentHandler sub2Handler = new CountingFragmentHandler(sub2);
         final CountingFragmentHandler sub4Handler = new CountingFragmentHandler(sub4);

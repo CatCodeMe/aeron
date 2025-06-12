@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,11 @@ int aeron_client_connect_to_driver(aeron_mapped_file_t *cnc_mmap, aeron_context_
     long long start_ms = context->epoch_clock();
     long long deadline_ms = start_ms + (long long)context->driver_timeout_ms;
     char filename[AERON_MAX_PATH];
-    aeron_cnc_resolve_filename(context->aeron_dir, filename, AERON_MAX_PATH);
+    if (aeron_cnc_resolve_filename(context->aeron_dir, filename, sizeof(filename)) < 0)
+    {
+        AERON_APPEND_ERR("Failed to resolve CnC file path: dir=%s, filename=%s", context->aeron_dir, filename);
+        return -1;
+    }
 
     while (true)
     {

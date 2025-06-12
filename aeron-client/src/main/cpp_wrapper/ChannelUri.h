@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -344,6 +344,20 @@ public:
 
         channelUri->put(SESSION_ID_PARAM_NAME, std::to_string(sessionId));
         return channelUri->toString();
+    }
+
+    inline static std::string addAliasIfAbsent(const std::string& uri, const std::string& alias)
+    {
+        if (!alias.empty())
+        {
+            std::shared_ptr<ChannelUri> channelUri = ChannelUri::parse(uri);
+            if (!channelUri->containsKey(ALIAS_PARAM_NAME))
+            {
+                channelUri->put(ALIAS_PARAM_NAME, alias);
+                return channelUri->toString();
+            }
+        }
+        return uri;
     }
 
 private:

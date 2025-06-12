@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,7 +46,11 @@ public class StorageSpaceException extends AeronException
         Throwable cause = error;
         while (null != cause)
         {
-            if (cause instanceof IOException)
+            if (cause instanceof StorageSpaceException)
+            {
+                return true;
+            }
+            else if (cause instanceof IOException)
             {
                 final String msg = cause.getMessage();
                 if ("No space left on device".equals(msg) || "There is not enough space on the disk".equals(msg))

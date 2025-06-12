@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,6 +66,8 @@
 #define AERON_ERROR_CODE_RESOURCE_TEMPORARILY_UNAVAILABLE (10)
 #define AERON_ERROR_CODE_GENERIC_ERROR (11)
 #define AERON_ERROR_CODE_STORAGE_SPACE (12)
+#define AERON_ERROR_CODE_IMAGE_REJECTED (13)
+#define AERON_ERROR_CODE_PUBLICATION_REVOKED (14)
 
 #pragma pack(push)
 #pragma pack(4)
@@ -136,12 +138,29 @@ typedef struct aeron_error_response_stct
 }
 aeron_error_response_t;
 
-typedef struct aeron_remove_command_stct
+typedef struct aeron_remove_counter_command_stct
 {
     aeron_correlated_command_t correlated;
     int64_t registration_id;
 }
-aeron_remove_command_t;
+aeron_remove_counter_command_t;
+
+#define AERON_COMMAND_REMOVE_PUBLICATION_FLAG_REVOKE (0x1)
+
+typedef struct aeron_remove_publication_command_stct
+{
+    aeron_correlated_command_t correlated;
+    int64_t registration_id;
+    uint64_t flags;
+}
+aeron_remove_publication_command_t;
+
+typedef struct aeron_remove_subscription_command_stct
+{
+    aeron_correlated_command_t correlated;
+    int64_t registration_id;
+}
+aeron_remove_subscription_command_t;
 
 typedef struct aeron_image_message_stct
 {

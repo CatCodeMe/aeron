@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,22 +22,42 @@
 #include <stdbool.h>
 
 #define AERON_MAX_HOSTNAME_LEN (256)
-#define AERON_MAX_PATH (384)
 #define AERON_CHANNEL_STATUS_INDICATOR_NOT_ALLOCATED (-1)
 #define AERON_URI_INVALID_TAG (-1)
 
 typedef void (*aeron_idle_strategy_func_t)(void *state, int work_count);
 typedef int (*aeron_idle_strategy_init_func_t)(void **state, const char *env_var, const char *init_args);
 
+typedef enum aeron_driver_managed_resource_event_enum
+{
+    AERON_DRIVER_MANAGED_RESOURCE_EVENT_INCREF,
+    AERON_DRIVER_MANAGED_RESOURCE_EVENT_DECREF,
+    AERON_DRIVER_MANAGED_RESOURCE_EVENT_REVOKE
+}
+aeron_driver_managed_resource_event_t;
+
 typedef struct aeron_driver_managed_resource_stct
 {
     int64_t registration_id;
     int64_t time_of_last_state_change_ns;
     void *clientd;
-    void (*decref)(void *);
-    void (*incref)(void *);
+    void (*handle_event)(aeron_driver_managed_resource_event_t, void *);
 }
 aeron_driver_managed_resource_t;
+
+#define AERON_DRIVER_MANAGED_RESOURCE_HANDLE_EVENT(_resource, _event) \
+do                                                                    \
+{                                                                     \
+    if (NULL != (_resource) && NULL != (_resource)->handle_event)     \
+    {                                                                 \
+        (_resource)->handle_event((_event), (_resource)->clientd);    \
+    }                                                                 \
+}                                                                     \
+while (0)
+
+#define AERON_DRIVER_MANAGED_RESOURCE_INCREF(_resource) AERON_DRIVER_MANAGED_RESOURCE_HANDLE_EVENT(_resource, AERON_DRIVER_MANAGED_RESOURCE_EVENT_INCREF)
+#define AERON_DRIVER_MANAGED_RESOURCE_DECREF(_resource) AERON_DRIVER_MANAGED_RESOURCE_HANDLE_EVENT(_resource, AERON_DRIVER_MANAGED_RESOURCE_EVENT_DECREF)
+#define AERON_DRIVER_MANAGED_RESOURCE_REVOKE(_resource) AERON_DRIVER_MANAGED_RESOURCE_HANDLE_EVENT(_resource, AERON_DRIVER_MANAGED_RESOURCE_EVENT_REVOKE)
 
 typedef struct aeron_position_stct
 {

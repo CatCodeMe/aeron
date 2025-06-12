@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ public class SystemCountersTest
     }
 
     @Test
-    void shouldCreatePublicationUsingSparseFiles()
+    void verifySystemCounterLabels()
     {
         final CountersReader countersReader = aeron.countersReader();
         final Int2ObjectHashMap<String> idToLabel = new Int2ObjectHashMap<>();

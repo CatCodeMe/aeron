@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 #ifndef AERON_URI_H
 #define AERON_URI_H
 
-#include <stdbool.h>
 #include "aeron_common.h"
 
 typedef struct aeron_uri_param_stct
@@ -34,7 +33,11 @@ typedef struct aeron_uri_params_stct
 }
 aeron_uri_params_t;
 
+#define AERON_SPY_PREFIX "aeron-spy:"
+#define AERON_SPY_PREFIX_LEN strlen(AERON_SPY_PREFIX)
+
 #define AERON_IPC_CHANNEL "aeron:ipc"
+#define AERON_IPC_CHANNEL_LEN strlen(AERON_IPC_CHANNEL)
 
 #define AERON_UDP_CHANNEL_RELIABLE_KEY "reliable"
 #define AERON_UDP_CHANNEL_TTL_KEY "ttl"
@@ -51,6 +54,7 @@ aeron_uri_params_t;
 #define AERON_URI_TERM_ID_KEY "term-id"
 #define AERON_URI_TERM_OFFSET_KEY "term-offset"
 
+#define AERON_URI_ALIAS_KEY "alias"
 #define AERON_URI_TERM_LENGTH_KEY "term-length"
 #define AERON_URI_LINGER_TIMEOUT_KEY "linger"
 #define AERON_URI_MTU_LENGTH_KEY "mtu"
@@ -76,9 +80,14 @@ aeron_uri_params_t;
 #define AERON_URI_RESPONSE_CORRELATION_ID_KEY "response-correlation-id"
 #define AERON_URI_NAK_DELAY_KEY "nak-delay"
 #define AERON_URI_UNTETHERED_WINDOW_LIMIT_TIMEOUT_KEY "untethered-window-limit-timeout"
+#define AERON_URI_UNTETHERED_LINGER_TIMEOUT_KEY "untethered-linger-timeout"
 #define AERON_URI_UNTETHERED_RESTING_TIMEOUT_KEY "untethered-resting-timeout"
 #define AERON_URI_MAX_RESEND_KEY "max-resend"
+#define AERON_URI_STREAM_ID_KEY "stream-id"
+#define AERON_URI_PUBLICATION_WINDOW_KEY "pub-wnd"
 #define AERON_URI_INVALID_TAG (-1)
+
+#define AERON_URI_MAX_LENGTH (4096) // max channel uri length including NUL character
 
 typedef struct aeron_udp_channel_params_stct
 {
@@ -109,7 +118,7 @@ aeron_uri_type_t;
 
 typedef struct aeron_uri_stct
 {
-    char mutable_uri[AERON_MAX_PATH];
+    char mutable_uri[AERON_URI_MAX_LENGTH];
     aeron_uri_type_t type;
 
     union
@@ -132,9 +141,6 @@ aeron_uri_ats_status_t;
 typedef int (*aeron_uri_parse_callback_t)(void *clientd, const char *key, const char *value);
 
 int aeron_uri_parse_params(char *uri, aeron_uri_parse_callback_t param_func, void *clientd);
-
-int aeron_udp_uri_parse(char *uri, aeron_udp_channel_params_t *params);
-int aeron_ipc_uri_parse(char *uri, aeron_ipc_channel_params_t *params);
 
 int aeron_uri_parse(size_t uri_length, const char *uri, aeron_uri_t *params);
 

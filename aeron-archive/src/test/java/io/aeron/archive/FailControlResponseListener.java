@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package io.aeron.archive;
 
+import io.aeron.Aeron;
 import io.aeron.archive.client.ControlResponseListener;
 import io.aeron.archive.codecs.ControlResponseCode;
 
@@ -29,8 +30,11 @@ class FailControlResponseListener implements ControlResponseListener
         final ControlResponseCode code,
         final String errorMessage)
     {
-        fail("controlSessionId=" + controlSessionId + ", correlationId=" + correlationId + ", relevantId=" +
-            relevantId + ", responseCode=" + code + ", errorMessage=" + errorMessage);
+        if (Aeron.NULL_VALUE != correlationId)
+        {
+            fail("controlSessionId=" + controlSessionId + ", correlationId=" + correlationId + ", relevantId=" +
+                relevantId + ", responseCode=" + code + ", errorMessage=" + errorMessage);
+        }
     }
 
     public void onRecordingDescriptor(

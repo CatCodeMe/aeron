@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,6 +61,7 @@ public final class Image
     private long eosPosition = Long.MAX_VALUE;
     private boolean isEos;
     private volatile boolean isClosed;
+    private volatile boolean isRevoked;
 
     private final Position subscriberPosition;
     private final UnsafeBuffer[] termBuffers;
@@ -234,7 +235,7 @@ public final class Image
         if (!isClosed)
         {
             validatePosition(newPosition);
-            subscriberPosition.setOrdered(newPosition);
+            subscriberPosition.setRelease(newPosition);
         }
     }
 
@@ -295,6 +296,21 @@ public final class Image
         }
 
         return LogBufferDescriptor.activeTransportCount(logBuffers.metaDataBuffer());
+    }
+
+    /**
+     * Has the associated publication been revoked?
+     *
+     * @return true if the associated publication was revoked otherwise false.
+     */
+    public boolean isPublicationRevoked()
+    {
+        if (isClosed)
+        {
+            return isRevoked;
+        }
+
+        return LogBufferDescriptor.isPublicationRevoked(logBuffers.metaDataBuffer());
     }
 
     /**
@@ -364,9 +380,9 @@ public final class Image
         finally
         {
             final long newPosition = initialPosition + (offset - initialOffset);
-            if (newPosition > initialPosition)
+            if (newPosition > initialPosition && !isClosed)
             {
-                subscriberPosition.setOrdered(newPosition);
+                subscriberPosition.setRelease(newPosition);
             }
         }
 
@@ -442,7 +458,10 @@ public final class Image
                 {
                     initialPosition += (offset - initialOffset);
                     initialOffset = offset;
-                    subscriberPosition.setOrdered(initialPosition);
+                    if (!isClosed)
+                    {
+                        subscriberPosition.setRelease(initialPosition);
+                    }
                 }
             }
         }
@@ -453,9 +472,9 @@ public final class Image
         finally
         {
             final long resultingPosition = initialPosition + (offset - initialOffset);
-            if (resultingPosition > initialPosition)
+            if (resultingPosition > initialPosition && !isClosed)
             {
-                subscriberPosition.setOrdered(resultingPosition);
+                subscriberPosition.setRelease(resultingPosition);
             }
         }
 
@@ -528,9 +547,9 @@ public final class Image
         finally
         {
             final long resultingPosition = initialPosition + (offset - initialOffset);
-            if (resultingPosition > initialPosition)
+            if (resultingPosition > initialPosition && !isClosed)
             {
-                subscriberPosition.setOrdered(resultingPosition);
+                subscriberPosition.setRelease(resultingPosition);
             }
         }
 
@@ -615,7 +634,10 @@ public final class Image
                 {
                     initialPosition += (offset - initialOffset);
                     initialOffset = offset;
-                    subscriberPosition.setOrdered(initialPosition);
+                    if (!isClosed)
+                    {
+                        subscriberPosition.setRelease(initialPosition);
+                    }
                 }
             }
         }
@@ -626,9 +648,9 @@ public final class Image
         finally
         {
             final long resultingPosition = initialPosition + (offset - initialOffset);
-            if (resultingPosition > initialPosition)
+            if (resultingPosition > initialPosition && !isClosed)
             {
-                subscriberPosition.setOrdered(resultingPosition);
+                subscriberPosition.setRelease(resultingPosition);
             }
         }
 
@@ -768,7 +790,10 @@ public final class Image
             }
             finally
             {
-                subscriberPosition.setOrdered(position + length);
+                if (!isClosed)
+                {
+                    subscriberPosition.setRelease(position + length);
+                }
             }
         }
 
@@ -823,7 +848,10 @@ public final class Image
             }
             finally
             {
-                subscriberPosition.setOrdered(position + length);
+                if (!isClosed)
+                {
+                    subscriberPosition.setRelease(position + length);
+                }
             }
         }
 
@@ -831,9 +859,9 @@ public final class Image
     }
 
     /**
-     * Force the driver to disconnect this image from the remote publication.
+     * Reject this image.
      *
-     * @param reason an error message to be forwarded back to the publication.
+     * @param reason a String indicating the reason why this image is being rejected.
      */
     public void reject(final String reason)
     {
@@ -871,6 +899,7 @@ public final class Image
         finalPosition = subscriberPosition.getVolatile();
         eosPosition = LogBufferDescriptor.endOfStreamPosition(logBuffers.metaDataBuffer());
         isEos = finalPosition >= eosPosition;
+        isRevoked = LogBufferDescriptor.isPublicationRevoked(logBuffers.metaDataBuffer());
         isClosed = true;
     }
 

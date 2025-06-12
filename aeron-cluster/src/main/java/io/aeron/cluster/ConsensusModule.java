@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,7 +83,7 @@ import static org.agrona.SystemUtil.*;
 public final class ConsensusModule implements AutoCloseable
 {
     /**
-     * Default set of flags when taking a snapshot
+     * Default set of flags when taking a snapshot.
      */
     public static final int CLUSTER_ACTION_FLAGS_DEFAULT = 0;
 
@@ -440,7 +440,7 @@ public final class ConsensusModule implements AutoCloseable
         public static final String CLUSTER_MEMBERS_PROP_NAME = "aeron.cluster.members";
 
         /**
-         * Property name for the comma separated list of cluster consensus endpoints used for dynamic join, cluster
+         * Property name for the comma separated list of cluster consensus endpoints used for cluster
          * backup and cluster standby nodes.
          */
         @Config
@@ -451,22 +451,6 @@ public final class ConsensusModule implements AutoCloseable
          */
         @Config
         public static final String CLUSTER_CONSENSUS_ENDPOINTS_DEFAULT = "";
-
-        /**
-         * Property name for whether cluster member information in snapshots should be ignored on load or not.
-         * @deprecated Was used by the dynamic join.
-         */
-        @Config
-        @Deprecated(forRemoval = true, since = "1.47.0")
-        public static final String CLUSTER_MEMBERS_IGNORE_SNAPSHOT_PROP_NAME = "aeron.cluster.members.ignore.snapshot";
-
-        /**
-         * Default property for whether cluster member information in snapshots should be ignored or not.
-         * @deprecated Was used by the dynamic join.
-         */
-        @Config
-        @Deprecated(forRemoval = true, since = "1.47.0")
-        public static final String CLUSTER_MEMBERS_IGNORE_SNAPSHOT_DEFAULT = "false";
 
         /**
          * Channel for the clustered log.
@@ -750,20 +734,6 @@ public final class ConsensusModule implements AutoCloseable
         public static final long ELECTION_STATUS_INTERVAL_DEFAULT_NS = TimeUnit.MILLISECONDS.toNanos(100);
 
         /**
-         * Interval at which a dynamic joining member will send add cluster member and snapshot recording
-         * queries.
-         */
-        @Config(hasContext = false)
-        public static final String DYNAMIC_JOIN_INTERVAL_PROP_NAME = "aeron.cluster.dynamic.join.interval";
-
-        /**
-         * Default interval at which a dynamic joining member will send add cluster member and snapshot recording
-         * queries.
-         */
-        @Config(defaultType = DefaultType.LONG, defaultLong = 1000L * 1000 * 1000)
-        public static final long DYNAMIC_JOIN_INTERVAL_DEFAULT_NS = TimeUnit.SECONDS.toNanos(1);
-
-        /**
          * Name of the system property for specifying a supplier of {@link Authenticator} for the cluster.
          */
         @Config(defaultType = DefaultType.STRING, defaultString = "io.aeron.security.DefaultAuthenticatorSupplier")
@@ -939,7 +909,7 @@ public final class ConsensusModule implements AutoCloseable
             "aeron.cluster.replication.progress.interval";
 
         /**
-         * Property name of enabling the acceptance of standby snapshots
+         * Property name of enabling the acceptance of standby snapshots.
          */
         @Config(defaultType = DefaultType.BOOLEAN, defaultBoolean = false)
         public static final String CLUSTER_ACCEPT_STANDBY_SNAPSHOTS_PROP_NAME =
@@ -1033,21 +1003,6 @@ public final class ConsensusModule implements AutoCloseable
         public static String clusterConsensusEndpoints()
         {
             return System.getProperty(CLUSTER_CONSENSUS_ENDPOINTS_PROP_NAME, CLUSTER_CONSENSUS_ENDPOINTS_DEFAULT);
-        }
-
-        /**
-         * The value {@link #CLUSTER_MEMBERS_IGNORE_SNAPSHOT_DEFAULT} or system property
-         * {@link #CLUSTER_MEMBERS_IGNORE_SNAPSHOT_PROP_NAME} if set.
-         *
-         * @return {@link #CLUSTER_MEMBERS_IGNORE_SNAPSHOT_DEFAULT} or system property
-         * {@link #CLUSTER_MEMBERS_IGNORE_SNAPSHOT_PROP_NAME} it set.
-         * @deprecated Was used by the dynamic join.
-         */
-        @Deprecated(forRemoval = true, since = "1.47.0")
-        public static boolean clusterMembersIgnoreSnapshot()
-        {
-            return "true".equalsIgnoreCase(System.getProperty(
-                CLUSTER_MEMBERS_IGNORE_SNAPSHOT_PROP_NAME, CLUSTER_MEMBERS_IGNORE_SNAPSHOT_DEFAULT));
         }
 
         /**
@@ -1517,7 +1472,6 @@ public final class ConsensusModule implements AutoCloseable
         private int clusterMemberId = Configuration.clusterMemberId();
         private int appointedLeaderId = Configuration.appointedLeaderId();
         private String clusterMembers = Configuration.clusterMembers();
-        private String clusterConsensusEndpoints = Configuration.clusterConsensusEndpoints();
         private String ingressChannel = AeronCluster.Configuration.ingressChannel();
         private int ingressStreamId = AeronCluster.Configuration.ingressStreamId();
         private boolean isIpcIngressAllowed = Configuration.isIpcIngressAllowed();
@@ -1707,12 +1661,15 @@ public final class ConsensusModule implements AutoCloseable
 
             if (null == markFile)
             {
+                final int filePageSize = null != aeron ? aeron.context().filePageSize() :
+                    driverFilePageSize(new File(aeronDirectoryName), epochClock, new CommonContext().driverTimeoutMs());
                 markFile = new ClusterMarkFile(
                     new File(markFileDir, ClusterMarkFile.FILENAME),
                     ClusterComponentType.CONSENSUS_MODULE,
                     errorBufferLength,
                     epochClock,
-                    ClusteredServiceContainer.Configuration.LIVENESS_TIMEOUT_MS);
+                    ClusteredServiceContainer.Configuration.LIVENESS_TIMEOUT_MS,
+                    filePageSize);
             }
 
             MarkFile.ensureMarkFileLink(
@@ -1765,9 +1722,9 @@ public final class ConsensusModule implements AutoCloseable
                     new Aeron.Context()
                         .aeronDirectoryName(aeronDirectoryName)
                         .errorHandler(errorHandler)
+                        .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE)
                         .epochClock(epochClock)
                         .useConductorAgentInvoker(true)
-                        .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE)
                         .awaitingIdleStrategy(YieldingIdleStrategy.INSTANCE)
                         .clientLock(NoOpLock.INSTANCE)
                         .clientName(agentRoleName));
@@ -1803,7 +1760,7 @@ public final class ConsensusModule implements AutoCloseable
                 throw new ClusterException("Aeron client must use a RethrowingErrorHandler");
             }
 
-            if (null == aeron.conductorAgentInvoker())
+            if (!aeron.context().useConductorAgentInvoker())
             {
                 throw new ClusterException("Aeron client must use conductor agent invoker");
             }
@@ -2027,7 +1984,7 @@ public final class ConsensusModule implements AutoCloseable
 
             if (null == egressPublisher)
             {
-                egressPublisher = new EgressPublisher();
+                egressPublisher = new EgressPublisher(leaderHeartbeatTimeoutNs);
             }
 
             final ChannelUri channelUri = parse(logChannel());
@@ -2040,12 +1997,12 @@ public final class ConsensusModule implements AutoCloseable
 
             if (null != consensusModuleExtension && 0 != serviceCount)
             {
-                throw new ClusterException("Service count must be zero when ConsensusModuleExtension installed");
+                throw new ClusterException("Service count must be zero when a ConsensusModuleExtension installed");
             }
 
             concludeMarkFile();
 
-            if (io.aeron.driver.Configuration.printConfigurationOnStart())
+            if (CommonContext.shouldPrintConfigurationOnStart())
             {
                 System.out.println(this);
             }
@@ -2275,7 +2232,7 @@ public final class ConsensusModule implements AutoCloseable
          * @see Configuration#FILE_SYNC_LEVEL_PROP_NAME
          */
         @Config
-        int fileSyncLevel()
+        public int fileSyncLevel()
         {
             return fileSyncLevel;
         }
@@ -2412,67 +2369,6 @@ public final class ConsensusModule implements AutoCloseable
         public String clusterMembers()
         {
             return clusterMembers;
-        }
-
-        /**
-         * String representing the cluster members consensus endpoints used to request to join the cluster.
-         * <p>
-         * {@code "endpoint,endpoint,endpoint"}
-         *
-         * @param endpoints which are to be contacted for joining the cluster.
-         * @return this for a fluent API.
-         * @see Configuration#CLUSTER_CONSENSUS_ENDPOINTS_PROP_NAME
-         * @deprecated the dynamic join feature that uses this configuration in order to join the cluster is now
-         * deprecated and will be removed in a later release.
-         */
-        @Deprecated
-        public Context clusterConsensusEndpoints(final String endpoints)
-        {
-            this.clusterConsensusEndpoints = endpoints;
-            return this;
-        }
-
-        /**
-         * The endpoints representing cluster members of the cluster to attempt to contact to join the cluster.
-         *
-         * @return members of the cluster to attempt to request to join from.
-         * @see Configuration#CLUSTER_CONSENSUS_ENDPOINTS_PROP_NAME
-         * @deprecated the dynamic join feature that uses this configuration in order to join the cluster is now
-         * deprecated and will be removed in a later release.
-         */
-        @Deprecated
-        @Config
-        public String clusterConsensusEndpoints()
-        {
-            return clusterConsensusEndpoints;
-        }
-
-        /**
-         * Whether the cluster members in the snapshot should be ignored or not.
-         *
-         * @param ignore or not the cluster members in the snapshot.
-         * @return this for a fluent API.
-         * @see Configuration#CLUSTER_MEMBERS_IGNORE_SNAPSHOT_PROP_NAME
-         * @deprecated Was used by the dynamic join.
-         */
-        @Deprecated(forRemoval = true, since = "1.47.0")
-        public Context clusterMembersIgnoreSnapshot(final boolean ignore)
-        {
-            return this;
-        }
-
-        /**
-         * Whether the cluster members in the snapshot should be ignored or not.
-         *
-         * @return ignore or not the cluster members in the snapshot.
-         * @see Configuration#CLUSTER_MEMBERS_IGNORE_SNAPSHOT_PROP_NAME
-         * @deprecated Was used by the dynamic join.
-         */
-        @Config
-        @Deprecated(forRemoval = true, since = "1.47.0")
-        public boolean clusterMembersIgnoreSnapshot()
-        {
-            return false;
         }
 
         /**
@@ -4218,7 +4114,7 @@ public final class ConsensusModule implements AutoCloseable
         }
 
         /**
-         * Indicate whether this node should accept snapshots from standby nodes
+         * Indicate whether this node should accept snapshots from standby nodes.
          *
          * @return <code>true</code> if this node should accept snapshots from standby nodes, <code>false</code>
          * otherwise.
@@ -4232,7 +4128,7 @@ public final class ConsensusModule implements AutoCloseable
         }
 
         /**
-         * Indicate whether this node should accept snapshots from standby nodes
+         * Indicate whether this node should accept snapshots from standby nodes.
          *
          * @param acceptStandbySnapshots <code>true</code> if this node should accept snapshots from standby nodes,
          *                               <code>false</code> otherwise.
@@ -4408,11 +4304,7 @@ public final class ConsensusModule implements AutoCloseable
             final String aeronDirectory = aeron.context().aeronDirectoryName();
             final String authenticatorClassName = authenticatorSupplier.getClass().getName();
             ClusterMarkFile.checkHeaderLength(
-                aeronDirectory,
-                controlChannel(),
-                ingressChannel,
-                null,
-                authenticatorClassName);
+                aeronDirectory, controlChannel(), ingressChannel, null, authenticatorClassName);
 
             markFile.encoder()
                 .archiveStreamId(archiveContext.controlRequestStreamId())
@@ -4493,7 +4385,6 @@ public final class ConsensusModule implements AutoCloseable
                 "\n    clusterMemberId=" + clusterMemberId +
                 "\n    appointedLeaderId=" + appointedLeaderId +
                 "\n    clusterMembers='" + clusterMembers + '\'' +
-                "\n    clusterConsensusEndpoints='" + clusterConsensusEndpoints + '\'' +
                 "\n    ingressChannel='" + ingressChannel + '\'' +
                 "\n    ingressStreamId=" + ingressStreamId +
                 "\n    ingressFragmentLimit=" + ingressFragmentLimit +

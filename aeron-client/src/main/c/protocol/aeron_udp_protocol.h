@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,12 @@ typedef struct aeron_frame_header_stct
     int16_t type;
 }
 aeron_frame_header_t;
+
+typedef struct aeron_data_header_as_longs_stct
+{
+    uint64_t hdr[4];
+}
+aeron_data_header_as_longs_t;
 
 typedef struct aeron_setup_header_stct
 {
@@ -180,6 +186,7 @@ int aeron_udp_protocol_group_tag(aeron_status_message_header_t *sm, int64_t *gro
 #define AERON_DATA_HEADER_BEGIN_FLAG (UINT8_C(0x80))
 #define AERON_DATA_HEADER_END_FLAG (UINT8_C(0x40))
 #define AERON_DATA_HEADER_EOS_FLAG (UINT8_C(0x20))
+#define AERON_DATA_HEADER_REVOKED_FLAG (UINT8_C(0x10))
 
 #define AERON_DATA_HEADER_UNFRAGMENTED (AERON_DATA_HEADER_BEGIN_FLAG | AERON_DATA_HEADER_END_FLAG)
 

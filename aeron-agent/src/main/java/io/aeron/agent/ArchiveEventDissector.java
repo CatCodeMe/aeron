@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -606,7 +606,12 @@ final class ArchiveEventDissector
 
         builder.append(": controlSessionId=").append(controlSessionId);
         builder.append(" ");
+        absoluteOffset += buffer.getStringAscii(absoluteOffset, builder, LITTLE_ENDIAN);
+        absoluteOffset += SIZE_OF_INT;
+
+        builder.append(" reason=\"");
         buffer.getStringAscii(absoluteOffset, builder, LITTLE_ENDIAN);
+        builder.append("\"");
     }
 
     static void dissectReplaySessionError(

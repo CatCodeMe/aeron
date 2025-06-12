@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import static org.agrona.BitUtil.*;
  * Flyweight for Resolution Entry header.
  * <p>
  * <a target="_blank"
- *    href="https://github.com/real-logic/aeron/wiki/Transport-Protocol-Specification">Protocol Specification</a>
+ *    href="https://github.com/aeron-io/aeron/wiki/Transport-Protocol-Specification">Protocol Specification</a>
  * wiki page.
  */
 public class ResolutionEntryFlyweight extends HeaderFlyweight
@@ -54,7 +54,7 @@ public class ResolutionEntryFlyweight extends HeaderFlyweight
     public static final int ADDRESS_LENGTH_IP6 = 16;
 
     /**
-     * (S) - Self flag
+     * (S) - Self flag.
      */
     public static final short SELF_FLAG = 0x80;
 

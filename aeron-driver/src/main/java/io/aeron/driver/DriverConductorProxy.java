@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -160,7 +160,7 @@ public final class DriverConductorProxy
     }
 
     /**
-     * Handle a response setup message from the remote "server"
+     * Handle a response setup message from the remote "server".
      *
      * @param responseCorrelationId correlationId of the subscription that will handle responses.
      * @param responseSessionId     sessionId that will be associated with the incoming messages.
@@ -253,7 +253,7 @@ public final class DriverConductorProxy
         final int sessionId,
         final int streamId,
         final long receiverId,
-        final Long groupId,
+        final long groupId,
         final InetSocketAddress srcAddress,
         final int errorCode,
         final String errorMessage)

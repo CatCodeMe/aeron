@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -131,6 +131,7 @@ TEST_F(DriverConductorCounterTest, shouldRemoveMultipleCountersOnClientTimeout)
 
     ASSERT_EQ(addCounter(client_id, reg_id1, COUNTER_TYPE_ID, m_key, m_key_length, m_label), 0);
     ASSERT_EQ(addCounter(client_id, reg_id2, COUNTER_TYPE_ID, m_key, m_key_length, m_label), 0);
+    doWork();
     doWork();
 
     readAllBroadcastsFromConductor(mock_broadcast_handler);

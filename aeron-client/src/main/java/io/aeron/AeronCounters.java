@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,9 @@ import static org.agrona.BitUtil.SIZE_OF_INT;
 /**
  * This class serves as a registry for all counter type IDs used by Aeron.
  * <p>
- * The following ranges are reserved:
+ * Type IDs less than 1000 are reserved for Aeron use. Any custom counters should use a typeId of 1000 or higher.
+ * <p>
+ * Aeron uses the following specific ranges:
  * <ul>
  *     <li>{@code 0 - 99}: for client/driver counters.</li>
  *     <li>{@code 100 - 199}: for archive counters.</li>
@@ -73,8 +75,7 @@ public final class AeronCounters
 
     /**
      * The highest position the Receiver has rebuilt up to on a session-channel-stream tuple while rebuilding the
-     * stream.
-     * The stream is complete up to this point.
+     * stream.The stream is complete up to this point.
      */
     @AeronCounter(expectedCName = "RECEIVER_POSITION")
     public static final int DRIVER_RECEIVER_POS_TYPE_ID = 5;
@@ -157,6 +158,18 @@ public final class AeronCounters
     @AeronCounter(expectedCName = "CHANNEL_NUM_DESTINATIONS")
     public static final int MDC_DESTINATIONS_COUNTER_TYPE_ID = 18;
 
+    /**
+     * The number of NAK messages received by the Sender.
+     */
+    @AeronCounter
+    public static final int DRIVER_SENDER_NAKS_RECEIVED_TYPE_ID = 19;
+
+    /**
+     * The number of NAK messages sent by the Receiver.
+     */
+    @AeronCounter
+    public static final int DRIVER_RECEIVER_NAKS_SENT_TYPE_ID = 20;
+
     // Archive counters
     /**
      * The position a recording has reached when being archived.
@@ -190,7 +203,7 @@ public final class AeronCounters
     public static final int ARCHIVE_CYCLE_TIME_THRESHOLD_EXCEEDED_TYPE_ID = 104;
 
     /**
-     * The type id of the {@link Counter} used for keeping track of the max time it took recoder to write a block of
+     * The type id of the {@link Counter} used for keeping track of the max time it took recorder to write a block of
      * data to the storage.
      */
     @AeronCounter
@@ -392,7 +405,7 @@ public final class AeronCounters
     public static final int CLUSTER_STANDBY_HEARTBEAT_RESPONSE_COUNT_TYPE_ID = 222;
 
     /**
-     * Standby control toggle type id
+     * Standby control toggle type id.
      */
     @AeronCounter
     public static final int CLUSTER_STANDBY_CONTROL_TOGGLE_TYPE_ID = 223;
@@ -424,13 +437,13 @@ public final class AeronCounters
     public static final int TRANSITION_MODULE_ERROR_COUNT_TYPE_ID = 226;
 
     /**
-     * The type if of the {@link Counter} used for transition module state
+     * The type if of the {@link Counter} used for transition module state.
      */
     @AeronCounter(expectedCName = "CLUSTER_TRANSITION_MODULE_STATE")
     public static final int TRANSITION_MODULE_STATE_TYPE_ID = 224;
 
     /**
-     * Transition module control toggle type id
+     * Transition module control toggle type id.
      */
     @AeronCounter(expectedCName = "CLUSTER_TRANSITION_MODULE_CONTROL_TOGGLE")
     public static final int TRANSITION_MODULE_CONTROL_TOGGLE_TYPE_ID = 225;
@@ -523,7 +536,7 @@ public final class AeronCounters
     }
 
     /**
-     * Convenience overload for {@link AeronCounters#validateCounterTypeId(CountersReader, int, int)}
+     * Convenience overload for {@link AeronCounters#validateCounterTypeId(CountersReader, int, int)}.
      *
      * @param aeron                 to resolve a counters' reader.
      * @param counter               to be checked for the appropriate counterTypeId.
@@ -601,7 +614,7 @@ public final class AeronCounters
             remainingLabelLength);
         if (writtenLength > 0)
         {
-            metaDataBuffer.putIntOrdered(
+            metaDataBuffer.putIntRelease(
                 counterMetaDataOffset + CountersReader.LABEL_OFFSET, existingLabelLength + writtenLength);
         }
 

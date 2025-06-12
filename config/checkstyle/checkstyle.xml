@@ -39,9 +39,13 @@
 
         <module name="SuppressWarningsHolder"/>
 
+        <module name="JavadocStyle"/>
+        <module name="JavadocType"/>
+        <module name="JavadocMethod"/>
         <module name="JavadocVariable">
-            <property name="scope" value="public"/>
+            <property name="accessModifiers" value="public"/>
         </module>
+
         <module name="MissingJavadocType"/>
         <module name="MissingJavadocMethod"/>
         <module name="MissingJavadocPackage"/>

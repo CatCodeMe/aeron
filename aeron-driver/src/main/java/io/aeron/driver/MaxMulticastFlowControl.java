@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,14 +39,9 @@ public class MaxMulticastFlowControl implements FlowControl
     public static final String FC_PARAM_VALUE = "max";
 
     /**
-     * Singleton instance which can be used to avoid allocation.
-     */
-    public static final MaxMulticastFlowControl INSTANCE = new MaxMulticastFlowControl();
-
-    /**
      * Multiple of receiver window to allow for a retransmit action.
      */
-    private static final int RETRANSMIT_RECEIVER_WINDOW_MULTIPLE = 4;
+    private int retransmitReceiverWindowMultiple;
 
     /**
      * {@inheritDoc}
@@ -61,6 +56,10 @@ public class MaxMulticastFlowControl implements FlowControl
         final int initialTermId,
         final int termBufferLength)
     {
+        retransmitReceiverWindowMultiple = FlowControl.retransmitReceiverWindowMultiple(
+            udpChannel,
+            context.multicastFlowControlRetransmitReceiverWindowMultiple()
+        );
     }
 
     /**
@@ -146,6 +145,6 @@ public class MaxMulticastFlowControl implements FlowControl
         final int mtuLength)
     {
         return FlowControl.calculateRetransmissionLength(
-            resendLength, termBufferLength, termOffset, RETRANSMIT_RECEIVER_WINDOW_MULTIPLE);
+            resendLength, termBufferLength, termOffset, retransmitReceiverWindowMultiple);
     }
 }

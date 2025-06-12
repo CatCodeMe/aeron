@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,6 +75,7 @@ public class IndexedReplicatedRecording implements AutoCloseable
     private static final int LIVE_STREAM_ID = 1033;
     private static final String LIVE_CHANNEL = new ChannelUriStringBuilder()
         .media("udp")
+        .controlMode(CommonContext.MDC_CONTROL_MODE_DYNAMIC)
         .controlEndpoint("localhost:8100")
         .termLength(TERM_LENGTH)
         .build();

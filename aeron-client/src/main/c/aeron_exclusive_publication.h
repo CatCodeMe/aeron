@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,6 +52,7 @@ typedef struct aeron_exclusive_publication_stct
     void *on_close_complete_clientd;
 
     volatile bool is_closed;
+    bool revoke_on_close;
 
     uint8_t pre_fields_padding[AERON_CACHE_LINE_LENGTH];
     int64_t term_begin_position;

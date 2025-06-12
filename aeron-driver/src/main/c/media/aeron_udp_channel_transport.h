@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -110,7 +110,7 @@ inline void aeron_udp_channel_transport_set_interceptor_clientd(
 inline void aeron_udp_channel_transport_log_error(aeron_udp_channel_transport_t *transport)
 {
     aeron_distinct_error_log_record(transport->error_log, aeron_errcode(), aeron_errmsg());
-    aeron_counter_increment(transport->errors_counter, 1);
+    aeron_counter_increment(transport->errors_counter);
     aeron_err_clear();
 }
 

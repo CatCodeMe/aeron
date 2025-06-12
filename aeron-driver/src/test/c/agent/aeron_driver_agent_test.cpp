@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1606,4 +1606,18 @@ TEST_F(DriverAgentTest, shouldDissect)
     EXPECT_NE(nullptr, m_context->log.resend);
 }
 
+TEST_F(DriverAgentTest, shouldEnableNakSentUsingOldName)
+{
+    EXPECT_TRUE(aeron_driver_agent_logging_events_init("SEND_NAK_MESSAGE", ""));
 
+    EXPECT_TRUE(aeron_driver_agent_is_event_enabled(AERON_DRIVER_EVENT_NAK_SENT));
+    EXPECT_FALSE(aeron_driver_agent_is_event_enabled(AERON_DRIVER_EVENT_NAK_RECEIVED));
+}
+
+TEST_F(DriverAgentTest, shouldEnableNakSentUsingNewName)
+{
+    EXPECT_TRUE(aeron_driver_agent_logging_events_init("NAK_SENT", ""));
+
+    EXPECT_TRUE(aeron_driver_agent_is_event_enabled(AERON_DRIVER_EVENT_NAK_SENT));
+    EXPECT_FALSE(aeron_driver_agent_is_event_enabled(AERON_DRIVER_EVENT_NAK_RECEIVED));
+}

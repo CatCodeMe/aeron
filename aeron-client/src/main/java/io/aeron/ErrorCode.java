@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,6 +86,16 @@ public enum ErrorCode
      * Aeron encountered insufficient storage space while adding a resource.
      */
     STORAGE_SPACE(12),
+
+    /**
+     * An image was rejected.
+     */
+    IMAGE_REJECTED(13),
+
+    /**
+     * A publication was revoked.
+     */
+    PUBLICATION_REVOKED(14),
 
     // *** Insert new codes above here.
 

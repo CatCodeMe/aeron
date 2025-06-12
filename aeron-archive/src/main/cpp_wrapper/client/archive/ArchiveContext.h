@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -158,6 +158,17 @@ public:
     inline std::int32_t controlResponseStreamId() const
     {
         return aeron_archive_context_get_control_response_stream_id(m_aeron_archive_ctx_t);
+    }
+
+    inline Context &recordingEventsChannel(const std::string &channel)
+    {
+        aeron_archive_context_set_recording_events_channel(m_aeron_archive_ctx_t, channel.c_str());
+        return *this;
+    }
+
+    inline std::string recordingEventsChannel() const
+    {
+        return aeron_archive_context_get_recording_events_channel(m_aeron_archive_ctx_t);
     }
 
     inline Context &messageTimeoutNS(const std::int64_t messageTmoNS)

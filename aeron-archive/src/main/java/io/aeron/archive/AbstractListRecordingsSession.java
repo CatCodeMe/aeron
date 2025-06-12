@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  */
 package io.aeron.archive;
 
-import io.aeron.Aeron;
 import org.agrona.concurrent.UnsafeBuffer;
 
 abstract class AbstractListRecordingsSession implements Session
@@ -50,7 +49,7 @@ abstract class AbstractListRecordingsSession implements Session
     /**
      * {@inheritDoc}
      */
-    public void abort()
+    public void abort(final String reason)
     {
         isDone = true;
     }
@@ -68,7 +67,7 @@ abstract class AbstractListRecordingsSession implements Session
      */
     public long sessionId()
     {
-        return Aeron.NULL_VALUE;
+        return correlationId;
     }
 
     /**
@@ -111,7 +110,11 @@ abstract class AbstractListRecordingsSession implements Session
 
             if (acceptDescriptor(descriptorBuffer))
             {
-                controlSession.sendDescriptor(correlationId, descriptorBuffer);
+                if (!controlSession.sendDescriptor(correlationId, descriptorBuffer))
+                {
+                    isDone = controlSession.isDone();
+                    break;
+                }
                 ++sent;
             }
 

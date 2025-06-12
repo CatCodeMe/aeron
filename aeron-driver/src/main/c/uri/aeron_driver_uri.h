@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ typedef struct aeron_driver_uri_publication_params_stct
     int32_t term_id;
     uint64_t linger_timeout_ns;
     uint64_t untethered_window_limit_timeout_ns;
+    int64_t untethered_linger_timeout_ns;
     uint64_t untethered_resting_timeout_ns;
     bool has_session_id;
     int32_t session_id;
@@ -43,6 +44,9 @@ typedef struct aeron_driver_uri_publication_params_stct
     int64_t response_correlation_id;
     bool has_max_resend;
     uint32_t max_resend;
+    bool has_publication_window_length;
+    int32_t publication_window_length;
+    bool is_response;
 }
 aeron_driver_uri_publication_params_t;
 
@@ -52,11 +56,14 @@ typedef struct aeron_driver_uri_subscription_params_stct
     bool is_sparse;
     bool is_tether;
     bool is_rejoin;
-    aeron_inferable_boolean_t group;
     bool has_session_id;
+    bool is_response;
+    aeron_inferable_boolean_t group;
     int32_t session_id;
     size_t initial_window_length;
-    bool is_response;
+    uint64_t untethered_window_limit_timeout_ns;
+    int64_t untethered_linger_timeout_ns;
+    uint64_t untethered_resting_timeout_ns;
 }
 aeron_driver_uri_subscription_params_t;
 

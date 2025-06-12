@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ final class PendingServiceMessageTracker
         this.logPublisher = logPublisher;
         this.clusterClock = clusterClock;
 
-        logServiceSessionId = ((long)serviceId << 56) | Long.MIN_VALUE;
+        logServiceSessionId = serviceSessionId(serviceId, Long.MIN_VALUE);
         nextServiceSessionId = logServiceSessionId + 1;
     }
 
@@ -276,8 +276,25 @@ final class PendingServiceMessageTracker
         return buffer.getLong(clusterSessionIdOffset, SessionMessageHeaderDecoder.BYTE_ORDER) <= logServiceSessionId;
     }
 
-    static int serviceId(final long clusterSessionId)
+    static int serviceIdFromLogMessage(final long clusterSessionId)
     {
         return ((int)(clusterSessionId >>> 56)) & 0x7F;
+    }
+
+    /**
+     * Services use different approach for communicating the serviceId, this method extracts the serviceId from a
+     * cluster session id sent via an inter-service message.
+     *
+     * @param clusterSessionId passed in on an inter-service message.
+     * @return the associated serviceId.
+     */
+    static int serviceIdFromServiceMessage(final long clusterSessionId)
+    {
+        return (int)clusterSessionId;
+    }
+
+    static long serviceSessionId(final int serviceId, final long sessionId)
+    {
+        return ((long)serviceId << 56) | sessionId;
     }
 }

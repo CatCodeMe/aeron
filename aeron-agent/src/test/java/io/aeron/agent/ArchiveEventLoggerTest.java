@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import java.time.temporal.ChronoUnit;
 import static io.aeron.agent.AgentTests.verifyLogHeader;
 import static io.aeron.agent.ArchiveEventCode.*;
 import static io.aeron.agent.ArchiveEventEncoder.replicationSessionDoneLength;
+import static io.aeron.agent.ArchiveEventEncoder.replicationSessionStateChangeLength;
 import static io.aeron.agent.ArchiveEventLogger.CONTROL_REQUEST_EVENTS;
 import static io.aeron.agent.CommonEventEncoder.*;
 import static io.aeron.agent.EventConfiguration.MAX_EVENT_LENGTH;
@@ -183,15 +184,18 @@ class ArchiveEventLoggerTest
         final ChronoUnit to = ChronoUnit.MICROS;
         final long id = 555_000_000_000L;
         final String payload = from.name() + STATE_SEPARATOR + to.name();
-        final int captureLength = SIZE_OF_LONG + SIZE_OF_INT + payload.length();
+        final String reason = "test reason to check";
+        final int captureLength = SIZE_OF_LONG + SIZE_OF_INT + payload.length() + SIZE_OF_INT + reason.length();
 
-        logger.logControlSessionStateChange(from, to, id);
+        logger.logControlSessionStateChange(from, to, id, reason);
 
         verifyLogHeader(
             logBuffer, offset, CONTROL_SESSION_STATE_CHANGE.toEventCodeId(), captureLength, captureLength);
         assertEquals(id, logBuffer.getLong(encodedMsgOffset(offset + LOG_HEADER_LENGTH), LITTLE_ENDIAN));
         assertEquals(
             payload, logBuffer.getStringAscii(encodedMsgOffset(offset + LOG_HEADER_LENGTH + SIZE_OF_LONG)));
+        assertEquals(reason, logBuffer.getStringAscii(encodedMsgOffset(
+            offset + LOG_HEADER_LENGTH + SIZE_OF_LONG + SIZE_OF_INT + payload.length())));
     }
 
     @Test
@@ -280,6 +284,49 @@ class ArchiveEventLoggerTest
             " replayPosition=" + replayPosition + " srcStopPosition=" + srcStopPosition +
             " dstRecordingId=" + dstRecordingId + " dstStopPosition=" + dstStopPosition + " position=" + position +
             " isClosed=" + isClosed + " isEndOfStream=" + isEndOfStream + " isSynced=" + isSynced;
+
+        assertThat(sb.toString(), Matchers.matchesPattern(expectedMessagePattern));
+    }
+
+    @Test
+    void logReplicationSessionStateChange()
+    {
+        final ChronoUnit oldState = ChronoUnit.ERAS;
+        final ChronoUnit newState = ChronoUnit.MILLENNIA;
+        final long replicationId = 456456;
+        final long srcRecordingId = 345123;
+        final long dstRecordingId = 435675346;
+        final long position = 3425234;
+        final String reason = "some text goes here";
+
+        final int offset = ALIGNMENT * 3;
+        logBuffer.putLong(CAPACITY + TAIL_POSITION_OFFSET, offset);
+
+        logger.logReplicationSessionStateChange(
+            oldState,
+            newState,
+            replicationId,
+            srcRecordingId,
+            dstRecordingId,
+            position,
+            reason);
+
+        verifyLogHeader(
+            logBuffer,
+            offset,
+            REPLICATION_SESSION_STATE_CHANGE.toEventCodeId(),
+            replicationSessionStateChangeLength(oldState, newState, reason),
+            replicationSessionStateChangeLength(oldState, newState, reason));
+
+        final StringBuilder sb = new StringBuilder();
+        ArchiveEventDissector.dissectReplicationSessionStateChange(
+            logBuffer, encodedMsgOffset(offset), sb);
+
+        final String expectedMessagePattern =
+            "\\[[0-9]+\\.[0-9]+] ARCHIVE: REPLICATION_SESSION_STATE_CHANGE \\[76/76]:" +
+            " replicationId=" + replicationId + " srcRecordingId=" + srcRecordingId +
+            " dstRecordingId=" + dstRecordingId + " position=" + position +
+            " " + oldState.name() + " -> " + newState.name() + " reason=\"" + reason + "\"";
 
         assertThat(sb.toString(), Matchers.matchesPattern(expectedMessagePattern));
     }

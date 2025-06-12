@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -190,9 +190,9 @@ public final class ReceiveChannelEndpointThreadLocals
     }
 
     /**
-     * Flyweight over the {@link #responseSetupBuffer()}
+     * Flyweight over the {@link #responseSetupBuffer()}.
      *
-     * @return flyweight over the {@link #responseSetupBuffer()}
+     * @return flyweight over the {@link #responseSetupBuffer()}.
      */
     public ResponseSetupFlyweight responseSetupHeader()
     {
@@ -210,9 +210,9 @@ public final class ReceiveChannelEndpointThreadLocals
     }
 
     /**
-     * Flyweight over the {@link #errorBuffer()}
+     * Flyweight over the {@link #errorBuffer()}.
      *
-     * @return flyweight over the {@link #errorBuffer()}
+     * @return flyweight over the {@link #errorBuffer()}.
      */
     public ErrorFlyweight errorFlyweight()
     {

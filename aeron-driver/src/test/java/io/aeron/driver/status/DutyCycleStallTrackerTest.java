@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,10 +70,10 @@ class DutyCycleStallTrackerTest
         dutyCycleStallTracker.reportMeasurement(1001);
 
         verify(maxCycleTime, times(3)).isClosed();
-        verify(maxCycleTime).proposeMaxOrdered(555L);
-        verify(maxCycleTime).proposeMaxOrdered(1000L);
-        verify(maxCycleTime).proposeMaxOrdered(1001L);
-        verify(cycleTimeThresholdExceededCount).incrementOrdered();
+        verify(maxCycleTime).proposeMaxRelease(555L);
+        verify(maxCycleTime).proposeMaxRelease(1000L);
+        verify(maxCycleTime).proposeMaxRelease(1001L);
+        verify(cycleTimeThresholdExceededCount).incrementRelease();
         verifyNoMoreInteractions(maxCycleTime, cycleTimeThresholdExceededCount);
     }
 }

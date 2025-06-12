@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import io.aeron.ExclusivePublication;
 import io.aeron.Image;
 import io.aeron.archive.ArchiveThreadingMode;
 import io.aeron.cluster.client.AeronCluster;
+import io.aeron.cluster.codecs.CloseReason;
 import io.aeron.driver.MediaDriver;
 import io.aeron.driver.ThreadingMode;
 import io.aeron.logbuffer.ControlledFragmentHandler;
@@ -279,7 +280,7 @@ class ClusterWithNoServicesTest
             }
         }
 
-        public void onSessionClosed(final long clusterSessionId)
+        public void onSessionClosed(final long clusterSessionId, final CloseReason closeReason)
         {
         }
 

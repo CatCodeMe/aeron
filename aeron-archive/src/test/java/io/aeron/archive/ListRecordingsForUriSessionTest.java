@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -199,7 +199,7 @@ class ListRecordingsForUriSessionTest
             assertEquals(matchingRecordingIds[i], recordingDescriptorDecoder.recordingId());
             counter.set(i + 1);
 
-            return buffer.getInt(0);
+            return true;
         };
     }
 }

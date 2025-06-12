@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ public class ArchiveComponentLogger implements ComponentLogger
         ENABLED_EVENTS.removeAll(getArchiveEventCodes(configOptions.get(DISABLED_ARCHIVE_EVENT_CODES)));
 
         AgentBuilder tempBuilder = agentBuilder;
-        tempBuilder = addArchiveControlSessionDemuxerInstrumentation(tempBuilder);
+        tempBuilder = addArchiveControlSessionAdapterInstrumentation(tempBuilder);
 
         tempBuilder = addEventInstrumentation(
             tempBuilder,
@@ -157,7 +157,7 @@ public class ArchiveComponentLogger implements ComponentLogger
             ArchiveEventCode::valueOf);
     }
 
-    private static AgentBuilder addArchiveControlSessionDemuxerInstrumentation(final AgentBuilder agentBuilder)
+    private static AgentBuilder addArchiveControlSessionAdapterInstrumentation(final AgentBuilder agentBuilder)
     {
         if (ArchiveEventLogger.CONTROL_REQUEST_EVENTS.stream().noneMatch(ENABLED_EVENTS::contains))
         {
@@ -165,7 +165,7 @@ public class ArchiveComponentLogger implements ComponentLogger
         }
 
         return agentBuilder
-            .type(nameEndsWith("ControlSessionDemuxer"))
+            .type(nameEndsWith("ControlSessionAdapter"))
             .transform(((builder, typeDescription, classLoader, module, protectionDomain) -> builder
                 .visit(to(ControlInterceptor.ControlRequest.class)
                     .on(named("onFragment")))));

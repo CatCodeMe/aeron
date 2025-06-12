@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ class ReplicationSession implements Session, RecordingDescriptorConsumer
     private static final int RETRY_ATTEMPTS = 3;
     private final int replicationSessionId;
 
+    @SuppressWarnings("JavadocVariable")
     enum State
     {
         CONNECT,
@@ -163,7 +164,7 @@ class ReplicationSession implements Session, RecordingDescriptorConsumer
     /**
      * {@inheritDoc}
      */
-    public void abort()
+    public void abort(final String reason)
     {
         this.state(State.DONE, "abort");
     }
@@ -732,7 +733,7 @@ class ReplicationSession implements Session, RecordingDescriptorConsumer
             state(null == liveDestination ? State.REPLICATE : State.CATCHUP,
                 "image.correlationId=" + image.correlationId() +
                 ", image.sessionId=" + image.sessionId() +
-                ", image.jointPosition=" + image.joinPosition());
+                ", image.joinPosition=" + image.joinPosition());
             workCount += 1;
         }
         else if (epochClock.time() >= (timeOfLastActionMs + actionTimeoutMs))

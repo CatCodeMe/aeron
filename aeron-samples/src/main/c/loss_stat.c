@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,8 +61,8 @@ static void aeron_loss_stat_print_observation(
     const char *source,
     int32_t source_length)
 {
-    char first_timestamp_str[AERON_MAX_PATH];
-    char last_timestamp_str[AERON_MAX_PATH];
+    char first_timestamp_str[AERON_FORMAT_DATE_MAX_LENGTH];
+    char last_timestamp_str[AERON_FORMAT_DATE_MAX_LENGTH];
     aeron_format_date(first_timestamp_str, sizeof(first_timestamp_str), first_observation_timestamp);
     aeron_format_date(last_timestamp_str, sizeof(last_timestamp_str), last_observation_timestamp);
     printf(
@@ -82,7 +82,7 @@ static void aeron_loss_stat_print_observation(
 int main(int argc, char **argv)
 {
     char default_directory[AERON_MAX_PATH];
-    aeron_default_path(default_directory, AERON_MAX_PATH);
+    aeron_default_path(default_directory, sizeof(default_directory));
     aeron_loss_stat_settings_t settings =
         {
             .base_path = default_directory,

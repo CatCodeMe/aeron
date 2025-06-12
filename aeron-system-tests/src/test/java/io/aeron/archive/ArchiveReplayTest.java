@@ -95,13 +95,13 @@ public class ArchiveReplayTest
             final int replayStreamId = 10001;
 
             final long replaySessionId = aeronArchive.startReplay(
-                recordingResult.recordingId, IPC_CHANNEL, replayStreamId, new ReplayParams());
+                recordingResult.recordingId(), IPC_CHANNEL, replayStreamId, new ReplayParams());
 
             final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
             final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
 
             final MutableLong replayPosition = new MutableLong();
-            while (replayPosition.get() < recordingResult.position / 2)
+            while (replayPosition.get() < recordingResult.position() / 2)
             {
                 if (0 == replay.poll((buffer, offset, length, header) -> replayPosition.set(header.position()), 10))
                 {

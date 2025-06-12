@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ void aeron_driver_receiver_proxy_offer(aeron_driver_receiver_proxy_t *receiver_p
     aeron_rb_write_result_t result;
     while (AERON_RB_FULL == (result = aeron_mpsc_rb_write(receiver_proxy->command_queue, 1, cmd, length)))
     {
-        aeron_counter_ordered_increment(receiver_proxy->fail_counter, 1);
+        aeron_counter_increment_release(receiver_proxy->fail_counter);
         sched_yield();
     }
 

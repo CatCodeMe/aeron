@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,7 +86,7 @@ TEST_F(CSystemTest, shouldReallocateBindingsClientd)
     const char *name1 = "name1";
     int val1 = 11;
 
-    aeron_temp_filename(aeron_dir, AERON_MAX_PATH - 1);
+    aeron_temp_filename(aeron_dir, sizeof(aeron_dir));
 
     aeron_env_set("AERON_UDP_CHANNEL_INCOMING_INTERCEPTORS", "loss");
 

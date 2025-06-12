@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@ static void *aeron_executor_dispatch(void *arg)
 {
     aeron_executor_t *executor = (aeron_executor_t *)arg;
 
-    aeron_thread_set_name("aeron_executor");
+    aeron_thread_set_name("async-executor");
 
     aeron_executor_task_t *task;
     aeron_linked_queue_node_t *node;

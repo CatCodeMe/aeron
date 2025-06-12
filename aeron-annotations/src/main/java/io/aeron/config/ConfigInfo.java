@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A handy class for storing data that gets serialized into json
+ * A handy class for storing data that gets serialized into json.
  */
 public class ConfigInfo implements Serializable
 {
@@ -33,7 +33,6 @@ public class ConfigInfo implements Serializable
      * List of expectations.
      */
     public final ExpectedConfig expectations;
-
     /**
      * Whether property was found.
      */
@@ -120,7 +119,7 @@ public class ConfigInfo implements Serializable
     public boolean deprecated = false;
 
     /**
-     * @param id the unique identifier for this block o' config information
+     * @param id the unique identifier for this block o' config information.
      */
     public ConfigInfo(final String id)
     {

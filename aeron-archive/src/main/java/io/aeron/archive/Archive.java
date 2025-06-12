@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,9 +56,10 @@ import java.util.function.Supplier;
 
 import static io.aeron.Aeron.NULL_VALUE;
 import static io.aeron.AeronCounters.*;
+import static io.aeron.AeronCounters.ARCHIVE_CONTROL_SESSIONS_TYPE_ID;
+import static io.aeron.AeronCounters.ARCHIVE_ERROR_COUNT_TYPE_ID;
 import static io.aeron.CommonContext.ENDPOINT_PARAM_NAME;
-import static io.aeron.archive.Archive.Configuration.ARCHIVE_CONTROL_SESSIONS_TYPE_ID;
-import static io.aeron.archive.Archive.Configuration.ERROR_BUFFER_LENGTH_DEFAULT;
+import static io.aeron.archive.Archive.Configuration.*;
 import static io.aeron.archive.ArchiveThreadingMode.DEDICATED;
 import static io.aeron.exceptions.AeronException.Category.ERROR;
 import static io.aeron.logbuffer.LogBufferDescriptor.*;
@@ -70,7 +71,7 @@ import static org.agrona.BufferUtil.allocateDirectAligned;
 import static org.agrona.SystemUtil.*;
 
 /**
- * The Aeron Archive which allows for the recording and replay of local and remote {@link io.aeron.Publication}s .
+ * The Aeron Archive which allows for the recording and replay of local and remote {@link io.aeron.Publication}s.
  */
 @Versioned
 public final class Archive implements AutoCloseable
@@ -398,7 +399,7 @@ public final class Archive implements AutoCloseable
         public static final String MAX_CATALOG_ENTRIES_PROP_NAME = "aeron.archive.max.catalog.entries";
 
         /**
-         * Default limit for the entries in the {@link Catalog}
+         * Default limit for the entries in the {@link Catalog}.
          *
          * @see #MAX_CATALOG_ENTRIES_PROP_NAME
          */
@@ -435,6 +436,24 @@ public final class Archive implements AutoCloseable
          */
         @Config(defaultType = DefaultType.LONG, defaultLong = 5L * 1000 * 1000 * 1000)
         public static final long CONNECT_TIMEOUT_DEFAULT_NS = TimeUnit.SECONDS.toNanos(5);
+
+        /**
+         * Time interval in nanoseconds for checking session liveness checks.
+         *
+         * @since 1.47.0
+         */
+        @Config
+        public static final String SESSION_LIVENESS_CHECK_INTERVAL_PROP_NAME =
+            "aeron.archive.session.liveness.check.interval";
+
+        /**
+         * Default time interval in nanoseconds for checking session liveness.
+         *
+         * @see #SESSION_LIVENESS_CHECK_INTERVAL_PROP_NAME
+         * @since 1.47.0
+         */
+        @Config(defaultType = DefaultType.LONG, defaultLong = 1000L * 1000 * 1000)
+        public static final long SESSION_LIVENESS_CHECK_INTERVAL_DEFAULT_NS = TimeUnit.SECONDS.toNanos(1);
 
         /**
          * How long a replay publication should linger after all data is sent. Longer linger can help avoid tail loss.
@@ -976,6 +995,7 @@ public final class Archive implements AutoCloseable
     public static final class Context implements Cloneable
     {
         private static final VarHandle IS_CONCLUDED_VH;
+
         static
         {
             try
@@ -1017,6 +1037,8 @@ public final class Archive implements AutoCloseable
         private String replicationChannel = Configuration.replicationChannel();
 
         private long connectTimeoutNs = Configuration.connectTimeoutNs();
+        private long sessionLivenessCheckIntervalNs =
+            getDurationInNanos(SESSION_LIVENESS_CHECK_INTERVAL_PROP_NAME, SESSION_LIVENESS_CHECK_INTERVAL_DEFAULT_NS);
         private long replayLingerTimeoutNs = Configuration.replayLingerTimeoutNs();
         private long conductorCycleThresholdNs = Configuration.conductorCycleThresholdNs();
         private long recorderCycleThresholdNs = Configuration.recorderCycleThresholdNs();
@@ -1142,6 +1164,13 @@ public final class Archive implements AutoCloseable
                     "Archive.Context.recordingEventsEnabled is true");
             }
 
+            if (null != mediaDriverAgentInvoker && ArchiveThreadingMode.INVOKER != threadingMode)
+            {
+                throw new ConfigurationException(
+                    "Archive.Context.threadingMode(ArchiveThreadingMode.INVOKER) must be set if " +
+                    "Archive.Context.mediaDriverAgentInvoker is set");
+            }
+
             if (null == archiveDir)
             {
                 archiveDir = new File(archiveDirectoryName);
@@ -1201,6 +1230,8 @@ public final class Archive implements AutoCloseable
                 aeronDirectoryName = aeron.context().aeronDirectoryName();
             }
 
+            concludeArchiveId();
+
             if (null == markFile)
             {
                 if (errorBufferLength < ERROR_BUFFER_LENGTH_DEFAULT ||
@@ -1233,17 +1264,16 @@ public final class Archive implements AutoCloseable
                             .aeronDirectoryName(aeronDirectoryName)
                             .epochClock(epochClock)
                             .nanoClock(nanoClock)
-                            .errorHandler(RethrowingErrorHandler.INSTANCE)
+                            .errorHandler(errorHandler)
                             .driverAgentInvoker(mediaDriverAgentInvoker)
                             .useConductorAgentInvoker(true)
                             .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE)
                             .awaitingIdleStrategy(YieldingIdleStrategy.INSTANCE)
                             .clientLock(NoOpLock.INSTANCE)
-                            .clientName(NULL_VALUE != archiveId ? "archive-" + archiveId : "archive"));
+                            .clientName("archive archiveId=" + archiveId));
 
                     if (null == errorCounter)
                     {
-                        concludeArchiveId();
                         if (NULL_VALUE !=
                             ArchiveCounters.find(aeron.countersReader(), ARCHIVE_ERROR_COUNT_TYPE_ID, archiveId))
                         {
@@ -1257,8 +1287,6 @@ public final class Archive implements AutoCloseable
                     throw new ArchiveException(
                         "Aeron client instance must set Aeron.Context.useConductorInvoker(true)");
                 }
-
-                concludeArchiveId();
 
                 if (!(aeron.context().subscriberErrorHandler() instanceof RethrowingErrorHandler))
                 {
@@ -1559,7 +1587,7 @@ public final class Archive implements AutoCloseable
                 markFile.force();
             }
 
-            if (io.aeron.driver.Configuration.printConfigurationOnStart())
+            if (CommonContext.shouldPrintConfigurationOnStart())
             {
                 System.out.println(this);
             }
@@ -2057,6 +2085,33 @@ public final class Archive implements AutoCloseable
         }
 
         /**
+         * The time internal in nanoseconds at which session liveness checks are performed.
+         *
+         * @param sessionLivenessCheckIntervalNs of a liveness check.
+         * @return this for a fluent API.
+         * @see Configuration#SESSION_LIVENESS_CHECK_INTERVAL_PROP_NAME
+         * @since 1.47.0
+         */
+        public Context sessionLivenessCheckIntervalNs(final long sessionLivenessCheckIntervalNs)
+        {
+            this.sessionLivenessCheckIntervalNs = sessionLivenessCheckIntervalNs;
+            return this;
+        }
+
+        /**
+         * The time internal in nanoseconds at which session liveness checks are performed.
+         *
+         * @return the time internal in nanoseconds at which session liveness checks are performed.
+         * @see Configuration#SESSION_LIVENESS_CHECK_INTERVAL_PROP_NAME
+         * @since 1.47.0
+         */
+        @Config
+        public long sessionLivenessCheckIntervalNs()
+        {
+            return sessionLivenessCheckIntervalNs;
+        }
+
+        /**
          * The timeout in nanoseconds for or a replay publication to linger after draining.
          *
          * @param replayLingerTimeoutNs in nanoseconds for a replay publication to linger after draining.
@@ -2408,7 +2463,7 @@ public final class Archive implements AutoCloseable
          * @see Configuration#SEGMENT_FILE_LENGTH_PROP_NAME
          */
         @Config
-        int segmentFileLength()
+        public int segmentFileLength()
         {
             return segmentFileLength;
         }
@@ -2440,7 +2495,7 @@ public final class Archive implements AutoCloseable
          * @see Configuration#FILE_SYNC_LEVEL_PROP_NAME
          */
         @Config
-        int fileSyncLevel()
+        public int fileSyncLevel()
         {
             return fileSyncLevel;
         }
@@ -2477,7 +2532,7 @@ public final class Archive implements AutoCloseable
          * @see Configuration#CATALOG_FILE_SYNC_LEVEL_PROP_NAME
          */
         @Config
-        int catalogFileSyncLevel()
+        public int catalogFileSyncLevel()
         {
             return catalogFileSyncLevel;
         }
@@ -2506,7 +2561,7 @@ public final class Archive implements AutoCloseable
          *
          * @return the {@link AgentInvoker} that should be used for the Media Driver if running in a lightweight mode.
          */
-        AgentInvoker mediaDriverAgentInvoker()
+        public AgentInvoker mediaDriverAgentInvoker()
         {
             return mediaDriverAgentInvoker;
         }
@@ -3623,8 +3678,8 @@ public final class Archive implements AutoCloseable
          */
         public void close()
         {
-            CloseHelper.close(countedErrorHandler, archiveDirChannel);
             CloseHelper.close(countedErrorHandler, catalog);
+            CloseHelper.close(countedErrorHandler, archiveDirChannel);
 
             if (ownsAeronClient)
             {
@@ -3668,7 +3723,15 @@ public final class Archive implements AutoCloseable
         {
             if (NULL_VALUE == archiveId)
             {
-                archiveId = aeron.clientId();
+                if (null != aeron)
+                {
+                    archiveId = aeron.clientId();
+                }
+                else
+                {
+                    archiveId = CommonContext.nextCorrelationId(
+                        new File(aeronDirectoryName), epochClock, new CommonContext().driverTimeoutMs());
+                }
             }
         }
 
@@ -3705,6 +3768,7 @@ public final class Archive implements AutoCloseable
                 "\n    recordingEventsEnabled=" + recordingEventsEnabled +
                 "\n    replicationChannel='" + replicationChannel + '\'' +
                 "\n    connectTimeoutNs=" + connectTimeoutNs +
+                "\n    sessionLivenessCheckIntervalNs=" + sessionLivenessCheckIntervalNs +
                 "\n    replayLingerTimeoutNs=" + replayLingerTimeoutNs +
                 "\n    maxCatalogEntries=" + -1 +
                 "\n    catalogCapacity=" + catalogCapacity +

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package io.aeron.test;
 
 import io.aeron.Aeron;
+import io.aeron.Counter;
 import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.archive.status.RecordingPos;
@@ -25,6 +26,7 @@ import io.aeron.exceptions.AeronException;
 import io.aeron.exceptions.RegistrationException;
 import io.aeron.exceptions.TimeoutException;
 
+import org.agrona.DirectBuffer;
 import org.agrona.LangUtil;
 import org.agrona.concurrent.IdleStrategy;
 import org.agrona.concurrent.SleepingMillisIdleStrategy;
@@ -35,6 +37,7 @@ import org.agrona.concurrent.status.CountersManager;
 import org.agrona.concurrent.status.CountersReader;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestWatcher;
+import org.mockito.stubbing.Answer;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
@@ -50,7 +53,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.*;
 
 import static io.aeron.Aeron.NULL_VALUE;
@@ -221,14 +226,8 @@ public class Tests
      */
     public static void sleep(final long durationMs)
     {
-        try
-        {
-            Thread.sleep(durationMs);
-        }
-        catch (final InterruptedException ex)
-        {
-            throw new TimeoutException(ex, AeronException.Category.ERROR);
-        }
+        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(durationMs));
+        checkInterruptStatus();
     }
 
     /**
@@ -239,14 +238,8 @@ public class Tests
      */
     public static void sleep(final long durationMs, final Supplier<String> messageSupplier)
     {
-        try
-        {
-            Thread.sleep(durationMs);
-        }
-        catch (final InterruptedException ex)
-        {
-            throw new TimeoutException(messageSupplier.get());
-        }
+        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(durationMs));
+        checkInterruptStatus(messageSupplier);
     }
 
     /**
@@ -258,14 +251,8 @@ public class Tests
      */
     public static void sleep(final long durationMs, final String format, final Object... params)
     {
-        try
-        {
-            Thread.sleep(durationMs);
-        }
-        catch (final InterruptedException ex)
-        {
-            throw new TimeoutException(String.format(format, params));
-        }
+        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(durationMs));
+        checkInterruptStatus(format, params);
     }
 
     /**
@@ -830,6 +817,27 @@ public class Tests
         return new CountersManager(
             new UnsafeBuffer(ByteBuffer.allocateDirect(Configuration.countersMetadataBufferLength(dataLength))),
             new UnsafeBuffer(ByteBuffer.allocateDirect(dataLength)));
+    }
+
+    public static Answer<Counter> addCounterAnswer(
+        final CountersManager countersManager,
+        final LongSupplier registrationId)
+    {
+        return invocation ->
+        {
+            final int counterType = invocation.getArgument(0, Integer.class);
+            final DirectBuffer keyBuffer = invocation.getArgument(1, DirectBuffer.class);
+            final int keyOffset = invocation.getArgument(2, Integer.class);
+            final int keyLength = invocation.getArgument(3, Integer.class);
+            final DirectBuffer labelBuffer = invocation.getArgument(4, DirectBuffer.class);
+            final int labelOffset = invocation.getArgument(5, Integer.class);
+            final int labelLength = invocation.getArgument(6, Integer.class);
+
+            final int allocate = countersManager.allocate(
+                counterType, keyBuffer, keyOffset, keyLength, labelBuffer, labelOffset, labelLength);
+
+            return new Counter(countersManager, registrationId.getAsLong(), allocate);
+        };
     }
 
     public static Throwable setOrUpdateError(final Throwable existingError, final Throwable newError)

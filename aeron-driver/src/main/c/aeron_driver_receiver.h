@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -91,7 +91,7 @@ aeron_driver_receiver_t;
 inline void aeron_driver_receiver_log_error(aeron_driver_receiver_t *receiver)
 {
     aeron_distinct_error_log_record(receiver->error_log, aeron_errcode(), aeron_errmsg());
-    aeron_counter_increment(receiver->errors_counter, 1);
+    aeron_counter_increment(receiver->errors_counter);
     aeron_err_clear();
 }
 

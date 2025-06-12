@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,8 +37,8 @@ typedef enum aeron_udp_channel_control_mode_en aeron_udp_channel_control_mode;
 
 typedef struct aeron_udp_channel_stct
 {
-    char original_uri[AERON_MAX_PATH];
-    char canonical_form[AERON_MAX_PATH];
+    char original_uri[AERON_URI_MAX_LENGTH];
+    char canonical_form[AERON_URI_MAX_LENGTH];
     aeron_uri_t uri;
     struct sockaddr_storage remote_data;
     struct sockaddr_storage local_data;
@@ -86,6 +86,13 @@ int aeron_udp_channel_parse(
     aeron_udp_channel_t **channel,
     bool is_destination);
 
+int aeron_udp_channel_matches_tag(
+    aeron_udp_channel_t *channel,
+    aeron_udp_channel_t *endpoint_channel,
+    struct sockaddr_storage *local_address,
+    struct sockaddr_storage *remote_address,
+    bool *has_match);
+
 void aeron_udp_channel_delete(aeron_udp_channel_t *channel);
 
 inline bool aeron_udp_channel_is_wildcard(aeron_udp_channel_t *channel)
@@ -94,49 +101,14 @@ inline bool aeron_udp_channel_is_wildcard(aeron_udp_channel_t *channel)
         aeron_is_wildcard_addr(&channel->local_data) && aeron_is_wildcard_port(&channel->local_data);
 }
 
-inline int aeron_udp_channel_endpoints_match(aeron_udp_channel_t *channel, aeron_udp_channel_t *other, bool *result)
-{
-    bool cmp = false;
-    int rc = 0;
-
-    if (aeron_udp_channel_is_wildcard(other))
-    {
-        *result = true;
-        return rc;
-    }
-
-    rc = aeron_sockaddr_storage_cmp(&channel->remote_data, &other->remote_data, &cmp);
-    if (rc < 0)
-    {
-        AERON_APPEND_ERR("%s", "remote_data");
-        return rc;
-    }
-
-    if (!cmp)
-    {
-        *result = cmp;
-        return 0;
-    }
-
-    rc = aeron_sockaddr_storage_cmp(&channel->local_data, &other->local_data, &cmp);
-    if (rc < 0)
-    {
-        AERON_APPEND_ERR("%s", "local_data");
-        return rc;
-    }
-
-    *result = cmp;
-    return 0;
-}
-
 inline bool aeron_udp_channel_control_modes_match(aeron_udp_channel_t *channel, aeron_udp_channel_t *other)
 {
-    return AERON_UDP_CHANNEL_CONTROL_MODE_NONE == other->control_mode || channel->control_mode == other->control_mode;
+    return AERON_UDP_CHANNEL_CONTROL_MODE_NONE == channel->control_mode || channel->control_mode == other->control_mode;
 }
 
 inline bool aeron_udp_channel_equals(aeron_udp_channel_t *a, aeron_udp_channel_t *b)
 {
-    return a == b || (a != NULL && 0 == strncmp(a->canonical_form, b->canonical_form, AERON_MAX_PATH));
+    return a == b || (a != NULL && 0 == strncmp(a->canonical_form, b->canonical_form, AERON_URI_MAX_LENGTH));
 }
 
 inline size_t aeron_udp_channel_receiver_window(aeron_udp_channel_t *channel, size_t default_receiver_window)

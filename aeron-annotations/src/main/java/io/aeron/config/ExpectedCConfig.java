@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package io.aeron.config;
 import java.io.Serializable;
 
 /**
- * A handy class for storing expected C config info that can be serialized into json
+ * A handy class for storing expected C config info that can be serialized into json.
  */
 public class ExpectedCConfig implements Serializable
 {

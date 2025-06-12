@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import java.util.Arrays;
 
 /**
  * An authenticator that works off a simple principal/credential pair constructed by a builder. It only supports simple
- * authentication, but not challenge/response.
+ * authentication, not challenge/response.
  */
 public final class SimpleAuthenticator implements Authenticator
 {
@@ -46,6 +46,7 @@ public final class SimpleAuthenticator implements Authenticator
     public void onConnectRequest(final long sessionId, final byte[] encodedCredentials, final long nowMs)
     {
         final Principal principal = principalsByCredentialsMap.get(new Credentials(encodedCredentials));
+
         if (null != principal && principal.credentialsMatch(encodedCredentials))
         {
             authenticatedSessionIdToPrincipalMap.put(sessionId, principal);
@@ -67,6 +68,7 @@ public final class SimpleAuthenticator implements Authenticator
     {
         final long sessionId = sessionProxy.sessionId();
         final Principal principal = authenticatedSessionIdToPrincipalMap.get(sessionId);
+
         if (null != principal)
         {
             if (sessionProxy.authenticate(principal.encodedPrincipal))
@@ -89,7 +91,7 @@ public final class SimpleAuthenticator implements Authenticator
     }
 
     /**
-     * Builder to create instances of SimpleAuthenticator
+     * Builder to create instances of SimpleAuthenticator.
      */
     public static class Builder
     {
@@ -99,15 +101,15 @@ public final class SimpleAuthenticator implements Authenticator
          * Add a principal/credentials pair to the list supported by this authenticator. Note that the
          * {@link SimpleAuthenticator} keys the principals by the credentials, so the encoded credentials should
          * include the encoded principal. The associated {@link CredentialsSupplier} used on the client should handle
-         * encoding these credentials correctly as well. E.g.
+         * encoding these credentials correctly as well. For example:
          * <pre>
          * final SimpleAuthenticator simpleAuthenticator = new SimpleAuthenticator.Builder()
          *     .principal("user".getBytes(US_ASCII), "user:pass".getBytes(US_ASCII))
          *     .newInstance();
          * </pre>
          *
-         * @param encodedPrincipal      principal encoded as a byte array.
-         * @param encodedCredentials    credentials encoded as a byte array.
+         * @param encodedPrincipal   principal encoded as a byte array.
+         * @param encodedCredentials credentials encoded as a byte array.
          * @return this for a fluent API.
          */
         public Builder principal(final byte[] encodedPrincipal, final byte[] encodedCredentials)

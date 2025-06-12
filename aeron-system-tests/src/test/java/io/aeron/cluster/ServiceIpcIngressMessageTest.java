@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,22 +16,21 @@
 package io.aeron.cluster;
 
 import io.aeron.cluster.service.Cluster;
-import io.aeron.test.EventLogExtension;
-import io.aeron.test.InterruptAfter;
-import io.aeron.test.InterruptingTestCallback;
-import io.aeron.test.SlowTest;
-import io.aeron.test.SystemTestWatcher;
+import io.aeron.test.*;
 import io.aeron.test.cluster.ClusterTests;
 import io.aeron.test.cluster.TestCluster;
 import io.aeron.test.cluster.TestNode;
 import org.agrona.ExpandableArrayBuffer;
+import org.agrona.collections.Int2IntCounterMap;
 import org.agrona.collections.IntArrayList;
+import org.agrona.collections.IntHashSet;
 import org.agrona.collections.LongArrayList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.util.Collections;
 import java.util.function.IntFunction;
 
 import static io.aeron.test.cluster.TestCluster.aCluster;
@@ -127,6 +126,60 @@ class ServiceIpcIngressMessageTest
         awaitMessageCounts(cluster, oldLeader, messageCount);
 
         assertTrackedMessages(cluster, -1, messageCount);
+    }
+
+    @Test
+    @SlowTest
+    @InterruptAfter(60)
+    void shouldProcessServiceMessagesWithoutDuplicatesDuringFailoverWithUncommittedPendingServiceMessages()
+    {
+        final IntFunction<TestNode.TestService[]> serviceSupplier =
+            (i) -> new TestNode.TestService[]
+            {
+                new TestNode.MessageTrackingService(1, i),
+                new TestNode.MessageTrackingService(2, i),
+                new TestNode.MessageTrackingService(3, i)
+            };
+        final TestCluster cluster = aCluster()
+            .withStaticNodes(3)
+            .withTimerServiceSupplier(new PriorityHeapTimerServiceSupplier())
+            .withServiceSupplier(serviceSupplier)
+            .start();
+        systemTestWatcher.cluster(cluster);
+        systemTestWatcher.ignoreErrorsMatching((error) -> error.contains("publication is not connected"));
+
+        final TestNode oldLeader = cluster.awaitLeaderAndClosedElection();
+        cluster.connectClient();
+
+        final int ingressMessageCount = 50;
+        final int expectedServiceMessageCount = computeExpectedMessageCount(
+            oldLeader.services().length, ingressMessageCount);
+
+        final ExpandableArrayBuffer msgBuffer = cluster.msgBuffer();
+        for (int i = 0; i < ingressMessageCount; i++)
+        {
+            msgBuffer.putInt(0, i + i, LITTLE_ENDIAN);
+            cluster.pollUntilMessageSent(SIZE_OF_INT);
+        }
+
+        stopLeaderWithMessagesInFlight(cluster, oldLeader);
+
+        cluster.awaitLeader();
+        cluster.awaitServicesMessageCount(expectedServiceMessageCount);
+
+        for (int i = 0; i < 3; i++)
+        {
+            final TestNode node = cluster.node(i);
+            final TestNode.TestService[] services = node.services();
+            for (final TestNode.TestService service : services)
+            {
+                final TestNode.MessageTrackingService trackingService1 = (TestNode.MessageTrackingService)service;
+
+                final IntArrayList actualServiceMessages = trackingService1.serviceMessages();
+
+                assertNoDuplicates(node, actualServiceMessages);
+            }
+        }
     }
 
     @Test
@@ -434,6 +487,51 @@ class ServiceIpcIngressMessageTest
                 fail("memberId=" + node.index() + ", role=" + node.role() + ": Timers diverged: expected=" +
                     expectedTimers.size() + ", actual=" + actualTimers.size());
             }
+
+            assertNoDuplicates(node, actualServiceMessages);
         }
+    }
+
+    private static void assertNoDuplicates(final TestNode node, final IntArrayList actualServiceMessages)
+    {
+        final IntHashSet set = new IntHashSet(actualServiceMessages.size());
+        set.addAll(actualServiceMessages);
+
+        if (set.size() != actualServiceMessages.size())
+        {
+            final Int2IntCounterMap messageCounts = new Int2IntCounterMap(0);
+            for (final int messageId : actualServiceMessages)
+            {
+                messageCounts.incrementAndGet(messageId);
+            }
+
+            final IntArrayList duplicateMessageIds = new IntArrayList();
+            messageCounts.forEach((messageId, count) ->
+            {
+                if (count > 1)
+                {
+                    duplicateMessageIds.add(messageId);
+                }
+            });
+
+            Collections.sort(duplicateMessageIds);
+
+            fail("memberId=" + node.index() + ", role=" + node.role() + ": Duplicate messages found: " +
+                duplicateMessageIds);
+        }
+    }
+
+    private static int computeExpectedMessageCount(final int serviceCount, final int ingressMessageCount)
+    {
+        final int echoMessageCount = 1;
+        final int totalMessagesPerIngress =
+            serviceCount * TestNode.MessageTrackingService.SERVICE_MESSAGES_PER_INGRESS + echoMessageCount;
+        return ingressMessageCount * totalMessagesPerIngress;
+    }
+
+    private static void stopLeaderWithMessagesInFlight(final TestCluster cluster, final TestNode leader)
+    {
+        cluster.awaitResponseMessageCount(1);
+        cluster.stopNode(leader);
     }
 }

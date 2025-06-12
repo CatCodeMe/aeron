@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -311,12 +311,12 @@ final class DriverEventEncoder
             encodingBuffer, offset + encodedLength, SIZE_OF_INT + MAX_HOST_NAME_LENGTH, hostName);
     }
 
-    static void encodeSendNakMessage(
+    static void encodeNakMessage(
         final UnsafeBuffer encodingBuffer,
         final int offset,
         final int length,
         final int captureLength,
-        final InetSocketAddress controlAddress,
+        final InetSocketAddress address,
         final int sessionId,
         final int streamId,
         final int termId,
@@ -326,7 +326,7 @@ final class DriverEventEncoder
         final int headerLength = encodeLogHeader(encodingBuffer, offset, captureLength, length);
         final int bodyOffset = offset + headerLength;
         int bodyLength = 0;
-        final int socketEncodedLength = encodeSocketAddress(encodingBuffer, bodyOffset + bodyLength, controlAddress);
+        final int socketEncodedLength = encodeSocketAddress(encodingBuffer, bodyOffset + bodyLength, address);
         bodyLength += socketEncodedLength;
 
         encodingBuffer.putInt(bodyOffset + bodyLength, sessionId, LITTLE_ENDIAN);
@@ -367,6 +367,52 @@ final class DriverEventEncoder
         encodingBuffer.putInt(bodyOffset + bodyLength, termOffset, LITTLE_ENDIAN);
         bodyLength += SIZE_OF_INT;
         encodingBuffer.putInt(bodyOffset + bodyLength, nakLength, LITTLE_ENDIAN);
+        bodyLength += SIZE_OF_INT;
+        encodeTrailingString(encodingBuffer, bodyOffset + bodyLength, captureLength - bodyLength, channel);
+    }
+
+    static void encodePublicationRevoke(
+        final UnsafeBuffer encodingBuffer,
+        final int offset,
+        final int length,
+        final int captureLength,
+        final long revokedPos,
+        final int sessionId,
+        final int streamId,
+        final String channel)
+    {
+        final int headerLength = encodeLogHeader(encodingBuffer, offset, captureLength, length);
+        final int bodyOffset = offset + headerLength;
+
+        int bodyLength = 0;
+        encodingBuffer.putLong(bodyOffset + bodyLength, revokedPos, LITTLE_ENDIAN);
+        bodyLength += SIZE_OF_LONG;
+        encodingBuffer.putInt(bodyOffset + bodyLength, sessionId, LITTLE_ENDIAN);
+        bodyLength += SIZE_OF_INT;
+        encodingBuffer.putInt(bodyOffset + bodyLength, streamId, LITTLE_ENDIAN);
+        bodyLength += SIZE_OF_INT;
+        encodeTrailingString(encodingBuffer, bodyOffset + bodyLength, captureLength - bodyLength, channel);
+    }
+
+    static void encodePublicationImageRevoke(
+        final UnsafeBuffer encodingBuffer,
+        final int offset,
+        final int length,
+        final int captureLength,
+        final long revokedPos,
+        final int sessionId,
+        final int streamId,
+        final String channel)
+    {
+        final int headerLength = encodeLogHeader(encodingBuffer, offset, captureLength, length);
+        final int bodyOffset = offset + headerLength;
+
+        int bodyLength = 0;
+        encodingBuffer.putLong(bodyOffset + bodyLength, revokedPos, LITTLE_ENDIAN);
+        bodyLength += SIZE_OF_LONG;
+        encodingBuffer.putInt(bodyOffset + bodyLength, sessionId, LITTLE_ENDIAN);
+        bodyLength += SIZE_OF_INT;
+        encodingBuffer.putInt(bodyOffset + bodyLength, streamId, LITTLE_ENDIAN);
         bodyLength += SIZE_OF_INT;
         encodeTrailingString(encodingBuffer, bodyOffset + bodyLength, captureLength - bodyLength, channel);
     }

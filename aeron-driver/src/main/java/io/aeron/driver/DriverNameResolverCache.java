@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ final class DriverNameResolverCache implements AutoCloseable
                 Arrays.copyOf(address, addressLength),
                 port);
             entries.add(entry);
-            cacheEntriesCounter.setOrdered(entries.size());
+            cacheEntriesCounter.setRelease(entries.size());
         }
         else
         {
@@ -99,7 +99,7 @@ final class DriverNameResolverCache implements AutoCloseable
             if (entry.deadlineMs - nowMs < 0)
             {
                 ArrayListUtil.fastUnorderedRemove(listOfEntries, i, lastIndex--);
-                cacheEntriesCounter.setOrdered(listOfEntries.size());
+                cacheEntriesCounter.setRelease(listOfEntries.size());
                 workCount++;
             }
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,7 @@
  */
 package io.aeron.archive;
 
-import io.aeron.Aeron;
-import io.aeron.ChannelUri;
-import io.aeron.Image;
-import io.aeron.ImageFragmentAssembler;
+import io.aeron.*;
 import io.aeron.archive.client.AeronArchive;
 import io.aeron.archive.client.ArchiveException;
 import io.aeron.archive.codecs.*;
@@ -32,7 +29,7 @@ import org.agrona.collections.Long2ObjectHashMap;
 
 import static io.aeron.CommonContext.RESPONSE_CORRELATION_ID_PARAM_NAME;
 
-class ControlSessionDemuxer implements Session, FragmentHandler
+class ControlSessionAdapter implements FragmentHandler
 {
     private static final int FRAGMENT_LIMIT = 10;
     private static final int FILE_IO_MAX_LENGTH_VERSION = 7;
@@ -41,79 +38,39 @@ class ControlSessionDemuxer implements Session, FragmentHandler
     private static final int REPLAY_TOKEN_VERSION = 10;
 
     private final ControlRequestDecoders decoders;
-    private final Image image;
     private final AuthorisationService authorisationService;
-    private final ImageFragmentAssembler assembler = new ImageFragmentAssembler(this);
-    private final Long2ObjectHashMap<ControlSession> controlSessionByIdMap = new Long2ObjectHashMap<>();
+    private final FragmentAssembler fragmentAssembler = new FragmentAssembler(this);
+    private final Long2ObjectHashMap<SessionInfo> controlSessionByIdMap = new Long2ObjectHashMap<>();
+    private final Subscription controlSubscription;
+    private final Subscription localControlSubscription;
     private final ArchiveConductor conductor;
 
-    private boolean isActive = true;
-
-    ControlSessionDemuxer(
+    ControlSessionAdapter(
         final ControlRequestDecoders decoders,
-        final Image image,
+        final Subscription controlSubscription,
+        final Subscription localControlSubscription,
         final ArchiveConductor conductor,
         final AuthorisationService authorisationService)
     {
         this.decoders = decoders;
-        this.image = image;
+        this.controlSubscription = controlSubscription;
+        this.localControlSubscription = localControlSubscription;
         this.conductor = conductor;
         this.authorisationService = authorisationService;
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    public long sessionId()
+    public int poll()
     {
-        return image.correlationId();
-    }
+        int fragmentsRead = 0;
 
-    /**
-     * {@inheritDoc}
-     */
-    public void abort()
-    {
-        isActive = false;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void close()
-    {
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isDone()
-    {
-        return !isActive;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public int doWork()
-    {
-        int workCount = 0;
-
-        if (isActive)
+        if (null != controlSubscription)
         {
-            workCount += image.poll(assembler, FRAGMENT_LIMIT);
-
-            if (0 == workCount && image.isClosed())
-            {
-                isActive = false;
-                for (final ControlSession session : controlSessionByIdMap.values())
-                {
-                    session.abort();
-                }
-            }
+            fragmentsRead += controlSubscription.poll(fragmentAssembler, FRAGMENT_LIMIT);
         }
 
-        return workCount;
+        fragmentsRead += localControlSubscription.poll(fragmentAssembler, FRAGMENT_LIMIT);
+
+        return fragmentsRead;
     }
 
     /**
@@ -143,6 +100,8 @@ class ControlSessionDemuxer implements Session, FragmentHandler
                     headerDecoder.blockLength(),
                     headerDecoder.version());
 
+                final Image image = (Image)header.context();
+
                 final ControlSession session = conductor.newControlSession(
                     image.correlationId(),
                     decoder.correlationId(),
@@ -151,7 +110,7 @@ class ControlSessionDemuxer implements Session, FragmentHandler
                     decoder.responseChannel(),
                     ArrayUtil.EMPTY_BYTE_ARRAY,
                     this);
-                controlSessionByIdMap.put(session.sessionId(), session);
+                controlSessionByIdMap.put(session.sessionId(), new SessionInfo(image, session));
                 break;
             }
 
@@ -165,10 +124,10 @@ class ControlSessionDemuxer implements Session, FragmentHandler
                     headerDecoder.version());
 
                 final long controlSessionId = decoder.controlSessionId();
-                final ControlSession session = controlSessionByIdMap.get(controlSessionId);
-                if (null != session)
+                final SessionInfo info = controlSessionByIdMap.get(controlSessionId);
+                if (null != info)
                 {
-                    session.abort();
+                    info.controlSession.abort(ControlSession.SESSION_CLOSED_MSG);
                 }
                 break;
             }
@@ -240,8 +199,15 @@ class ControlSessionDemuxer implements Session, FragmentHandler
 
                 final String replayChannel = decoder.replayChannel();
                 final ChannelUri channelUri = ChannelUri.parse(replayChannel);
+                final Image image = (Image)header.context();
                 final ControlSession controlSession = setupSessionAndChannelForReplay(
-                    channelUri, replayToken, recordingId, correlationId, controlSessionId, templateId);
+                    channelUri,
+                    replayToken,
+                    recordingId,
+                    correlationId,
+                    controlSessionId,
+                    templateId,
+                    image.correlationId());
 
                 if (null != controlSession)
                 {
@@ -530,9 +496,17 @@ class ControlSessionDemuxer implements Session, FragmentHandler
 
                 final String replayChannel = decoder.replayChannel();
 
+                final Image image = (Image)header.context();
+
                 final ChannelUri channelUri = ChannelUri.parse(replayChannel);
                 final ControlSession controlSession = setupSessionAndChannelForReplay(
-                    channelUri, replayToken, recordingId, correlationId, controlSessionId, templateId);
+                    channelUri,
+                    replayToken,
+                    recordingId,
+                    correlationId,
+                    controlSessionId,
+                    templateId,
+                    image.correlationId());
 
                 if (null != controlSession)
                 {
@@ -766,6 +740,8 @@ class ControlSessionDemuxer implements Session, FragmentHandler
                     credentials = ArrayUtil.EMPTY_BYTE_ARRAY;
                 }
 
+                final Image image = (Image)header.context();
+
                 final ControlSession session = conductor.newControlSession(
                     image.correlationId(),
                     decoder.correlationId(),
@@ -774,7 +750,7 @@ class ControlSessionDemuxer implements Session, FragmentHandler
                     responseChannel,
                     credentials,
                     this);
-                controlSessionByIdMap.put(session.sessionId(), session);
+                controlSessionByIdMap.put(session.sessionId(), new SessionInfo(image, session));
                 break;
             }
 
@@ -788,8 +764,8 @@ class ControlSessionDemuxer implements Session, FragmentHandler
                     headerDecoder.version());
 
                 final long controlSessionId = decoder.controlSessionId();
-                final ControlSession session = controlSessionByIdMap.get(controlSessionId);
-                if (null != session)
+                final SessionInfo info = controlSessionByIdMap.get(controlSessionId);
+                if (null != info)
                 {
                     final int credentialsLength = decoder.encodedCredentialsLength();
                     final byte[] credentials;
@@ -804,7 +780,7 @@ class ControlSessionDemuxer implements Session, FragmentHandler
                         credentials = ArrayUtil.EMPTY_BYTE_ARRAY;
                     }
 
-                    session.onChallengeResponse(decoder.correlationId(), credentials);
+                    info.controlSession.onChallengeResponse(decoder.correlationId(), credentials);
                 }
                 break;
             }
@@ -984,8 +960,7 @@ class ControlSessionDemuxer implements Session, FragmentHandler
                         liveDestination,
                         replicationChannel,
                         encodedCredentials,
-                        srcResponseChannel
-                    );
+                        srcResponseChannel);
                 }
                 break;
             }
@@ -1072,10 +1047,35 @@ class ControlSessionDemuxer implements Session, FragmentHandler
         }
     }
 
-    void removeControlSession(final long sessionId)
+    void abortControlSessionByImage(final Image image)
     {
-        controlSessionByIdMap.remove(sessionId);
-        conductor.removeReplayTokensForSession(sessionId);
+        for (final SessionInfo info : controlSessionByIdMap.values())
+        {
+            if (info.image == image)
+            {
+                final Subscription subscription = image.subscription();
+                info.controlSession.abort("request publication image unavailable:" +
+                    " image.correlationId=" + image.correlationId() +
+                    " sessionId=" + image.sessionId() +
+                    " streamId=" + subscription.streamId() +
+                    " channel=" + subscription.channel());
+                break;
+            }
+        }
+    }
+
+    void removeControlSession(final long controlSessionId, final boolean sesionAborted, final String abortReason)
+    {
+        final SessionInfo sessionInfo = controlSessionByIdMap.remove(controlSessionId);
+        if (null != sessionInfo && sesionAborted)
+        {
+            sessionInfo.image.reject(abortReason);
+        }
+        conductor.removeReplayTokensForSession(controlSessionId);
+        if (!conductor.context().controlSessionsCounter().isClosed())
+        {
+            conductor.context().controlSessionsCounter().decrementRelease();
+        }
     }
 
     private ControlSession setupSessionAndChannelForReplay(
@@ -1084,7 +1084,8 @@ class ControlSessionDemuxer implements Session, FragmentHandler
         final long recordingId,
         final long correlationId,
         final long controlSessionId,
-        final int templateId)
+        final int templateId,
+        final long imageCorrelationId)
     {
         final ControlSession controlSession;
         if (channelUri.hasControlModeResponse() && Aeron.NULL_VALUE != replayToken)
@@ -1095,7 +1096,7 @@ class ControlSessionDemuxer implements Session, FragmentHandler
                 throw new ArchiveException("Unknown session or token timeout for replayToken=" + replayToken);
             }
 
-            channelUri.put(RESPONSE_CORRELATION_ID_PARAM_NAME, Long.toString(image.correlationId()));
+            channelUri.put(RESPONSE_CORRELATION_ID_PARAM_NAME, Long.toString(imageCorrelationId));
         }
         else
         {
@@ -1107,29 +1108,33 @@ class ControlSessionDemuxer implements Session, FragmentHandler
     private ControlSession getControlSession(
         final long correlationId, final long controlSessionId, final int templateId)
     {
-        final ControlSession controlSession = controlSessionByIdMap.get(controlSessionId);
-        if (null != controlSession)
+        final SessionInfo info = controlSessionByIdMap.get(controlSessionId);
+        if (null != info)
         {
+            final ControlSession controlSession = info.controlSession;
             final byte[] principal = controlSession.encodedPrincipal();
             if (!authorisationService.isAuthorised(MessageHeaderDecoder.SCHEMA_ID, templateId, null, principal))
             {
                 conductor.logWarning("unauthorised archive action=" + templateId +
-                    " controlSessionId=" + controlSessionId + " source=" + image.sourceIdentity());
+                    " controlSessionId=" + controlSessionId + " source=" + info.image.sourceIdentity());
 
                 controlSession.sendErrorResponse(
                     correlationId, ArchiveException.UNAUTHORISED_ACTION, "unauthorised action");
 
                 return null;
             }
+            return controlSession;
         }
         else
         {
             conductor.logWarning("control request for unknown session:" +
                 " controlSessionId=" + controlSessionId +
-                " templateId=" + templateId +
-                " source=" + image.sourceIdentity());
+                " templateId=" + templateId);
+            return null;
         }
+    }
 
-        return controlSession;
+    private record SessionInfo(Image image, ControlSession controlSession)
+    {
     }
 }

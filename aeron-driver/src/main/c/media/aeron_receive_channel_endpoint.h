@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,7 +68,7 @@ typedef struct aeron_receive_channel_endpoint_stct
     aeron_udp_channel_transport_bindings_t *transport_bindings;
     aeron_clock_cache_t *cached_clock;
 
-    aeron_driver_send_nak_message_func_t send_nak_message;
+    aeron_driver_nak_message_func_t send_nak_message;
 
     int64_t receiver_id;
     volatile bool has_receiver_released;
@@ -196,6 +196,11 @@ int aeron_receive_channel_endpoint_on_unconnected_stream(
     uint8_t *buffer,
     size_t length,
     struct sockaddr_storage *addr);
+
+int aeron_receive_channel_endpoint_matches_tag(
+    aeron_receive_channel_endpoint_t *endpoint,
+    aeron_udp_channel_t *channel,
+    bool *has_match);
 
 void aeron_receive_channel_endpoint_try_remove_endpoint(aeron_receive_channel_endpoint_t *endpoint);
 

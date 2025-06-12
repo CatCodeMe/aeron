@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,14 +34,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.Objects;
-import java.util.TreeMap;
+import java.util.*;
 
 import static io.aeron.Aeron.NULL_VALUE;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
@@ -169,7 +162,7 @@ public final class RecordingLog implements AutoCloseable
          * @param type                of the entry as a log of a term or a snapshot.
          * @param archiveEndpoint     archive where the snapshot is located, if
          *                            <code>entryType == ENTRY_TYPE_STANDBY_SNAPSHOT</code>.
-         * @param isValid             indicates if the entry is valid, {@link RecordingLog#invalidateEntry(long, int)}
+         * @param isValid             indicates if the entry is valid, {@link RecordingLog#invalidateEntry(int)}
          *                            marks it invalid.
          * @param position            of the entry on disk.
          * @param entryIndex          of the entry on disk.
@@ -706,9 +699,23 @@ public final class RecordingLog implements AutoCloseable
                 return result;
             }
 
+            result = Long.compare(e1.termBaseLogPosition, e2.termBaseLogPosition);
+            if (0 != result)
+            {
+                return result;
+            }
+
             result = Integer.compare(e1.type, e2.type);
             if (0 != result)
             {
+                if (ENTRY_TYPE_SNAPSHOT == e1.type)
+                {
+                    return 1;
+                }
+                else if (ENTRY_TYPE_SNAPSHOT == e2.type)
+                {
+                    return -1;
+                }
                 return result;
             }
 
@@ -724,7 +731,7 @@ public final class RecordingLog implements AutoCloseable
                     return result;
                 }
 
-                return Integer.compare(e2.serviceId, e1.serviceId);
+                return Integer.compare(e2.serviceId, e1.serviceId); // reverse serviceId order
             }
         };
 
@@ -871,7 +878,7 @@ public final class RecordingLog implements AutoCloseable
                 cacheIndexByLeadershipTermIdMap.put(entry.leadershipTermId, i);
             }
 
-            if (isInvalidSnapshot(entry))
+            if (!entry.isValid && (ENTRY_TYPE_SNAPSHOT == entry.type || ENTRY_TYPE_STANDBY_SNAPSHOT == entry.type))
             {
                 invalidSnapshots.add(i);
             }
@@ -982,32 +989,52 @@ public final class RecordingLog implements AutoCloseable
      */
     public boolean invalidateLatestSnapshot()
     {
-        int index = -1;
-        for (int i = entriesCache.size() - 1; i >= 0; i--)
-        {
-            final Entry entry = entriesCache.get(i);
-            if (isValidSnapshot(entry) && ConsensusModule.Configuration.SERVICE_ID == entry.serviceId)
-            {
-                if (!cacheIndexByLeadershipTermIdMap.containsKey(entry.leadershipTermId))
-                {
-                    throw new ClusterException(
-                        "no matching term for snapshot: leadershipTermId=" + entry.leadershipTermId);
-                }
+        final IntArrayList indices = new IntArrayList();
+        long highLogPosition = NULL_POSITION;
 
-                index = i;
-                break;
+        for (int idx = entriesCache.size() - 1; idx >= 0; idx--)
+        {
+            final Entry entry = entriesCache.get(idx);
+            if (isValidAnySnapshot(entry) && ConsensusModule.Configuration.SERVICE_ID == entry.serviceId)
+            {
+                if (entry.logPosition >= highLogPosition)
+                {
+                    if (!cacheIndexByLeadershipTermIdMap.containsKey(entry.leadershipTermId))
+                    {
+                        throw new ClusterException(
+                            "no matching term for snapshot: leadershipTermId=" + entry.leadershipTermId);
+                    }
+
+                    if (entry.logPosition > highLogPosition)
+                    {
+                        indices.clear();
+                        highLogPosition = entry.logPosition;
+                    }
+
+                    indices.pushInt(idx);
+                }
+                else
+                {
+                    // found an earlier snapshot, so stop searching through the cache
+                    break;
+                }
             }
         }
 
-        if (index >= 0)
+        final boolean found = !indices.isEmpty();
+
+        while (!indices.isEmpty())
         {
+            final int startingIndex = indices.popInt();
+
             int serviceId = ConsensusModule.Configuration.SERVICE_ID;
-            for (int i = index; i >= 0; i--)
+
+            for (int idx = startingIndex; idx >= 0; idx--)
             {
-                final Entry entry = entriesCache.get(i);
-                if (isValidSnapshot(entry) && entry.serviceId == serviceId)
+                final Entry entry = entriesCache.get(idx);
+                if (isValidAnySnapshot(entry) && entry.serviceId == serviceId)
                 {
-                    invalidateEntry(entry.leadershipTermId, entry.entryIndex);
+                    invalidateEntry(idx);
                     serviceId++;
                 }
                 else
@@ -1015,11 +1042,9 @@ public final class RecordingLog implements AutoCloseable
                     break;
                 }
             }
-
-            return true;
         }
 
-        return false;
+        return found;
     }
 
     /**
@@ -1202,7 +1227,7 @@ public final class RecordingLog implements AutoCloseable
         validateRecordingId(recordingId);
 
         if (!restoreInvalidSnapshot(
-            recordingId, leadershipTermId, termBaseLogPosition, logPosition, timestamp, serviceId))
+            ENTRY_TYPE_SNAPSHOT, recordingId, leadershipTermId, termBaseLogPosition, logPosition, timestamp, serviceId))
         {
             append(
                 ENTRY_TYPE_SNAPSHOT,
@@ -1250,7 +1275,13 @@ public final class RecordingLog implements AutoCloseable
         }
 
         if (!restoreInvalidSnapshot(
-            recordingId, leadershipTermId, termBaseLogPosition, logPosition, timestamp, serviceId))
+            ENTRY_TYPE_STANDBY_SNAPSHOT,
+            recordingId,
+            leadershipTermId,
+            termBaseLogPosition,
+            logPosition,
+            timestamp,
+            serviceId))
         {
             append(
                 ENTRY_TYPE_STANDBY_SNAPSHOT,
@@ -1287,42 +1318,18 @@ public final class RecordingLog implements AutoCloseable
         }
     }
 
-    /**
-     * Invalidate an entry in the log, so it is no longer valid. Be careful that the recording log is not left in an
-     * invalid state for recovery.
-     *
-     * @param leadershipTermId to match for validation.
-     * @param entryIndex       reached in the leadership term.
-     * @see #invalidateLatestSnapshot()
-     */
-    public void invalidateEntry(final long leadershipTermId, final int entryIndex)
+    void invalidateEntry(final int index)
     {
-        Entry invalidEntry = null;
+        final Entry invalidEntry = entriesCache.get(index).invalidate();
+        entriesCache.set(index, invalidEntry);
 
-        for (int i = entriesCache.size() - 1; i >= 0; i--)
+        if (ENTRY_TYPE_TERM == invalidEntry.type)
         {
-            final Entry entry = entriesCache.get(i);
-            if (entry.leadershipTermId == leadershipTermId && entry.entryIndex == entryIndex)
-            {
-                invalidEntry = entry.invalidate();
-                entriesCache.set(i, invalidEntry);
-
-                if (ENTRY_TYPE_TERM == entry.type)
-                {
-                    cacheIndexByLeadershipTermIdMap.remove(leadershipTermId);
-                }
-                else if (ENTRY_TYPE_SNAPSHOT == entry.type)
-                {
-                    invalidSnapshots.add(i);
-                }
-
-                break;
-            }
+            cacheIndexByLeadershipTermIdMap.remove(invalidEntry.leadershipTermId);
         }
-
-        if (null == invalidEntry)
+        else if (ENTRY_TYPE_SNAPSHOT == invalidEntry.type || ENTRY_TYPE_STANDBY_SNAPSHOT == invalidEntry.type)
         {
-            throw new ClusterException("unknown entry index: " + entryIndex);
+            invalidSnapshots.add(index);
         }
 
         final int invalidEntryType = ENTRY_TYPE_INVALID_FLAG | invalidEntry.type;
@@ -1496,6 +1503,11 @@ public final class RecordingLog implements AutoCloseable
         return !entry.isValid && ENTRY_TYPE_SNAPSHOT == entry.type;
     }
 
+    static boolean isValidAnySnapshot(final Entry entry)
+    {
+        return entry.isValid && (ENTRY_TYPE_SNAPSHOT == entry.type || ENTRY_TYPE_STANDBY_SNAPSHOT == entry.type);
+    }
+
     void ensureCoherent(
         final long recordingId,
         final long initialLogLeadershipTermId,
@@ -1590,6 +1602,7 @@ public final class RecordingLog implements AutoCloseable
     }
 
     private boolean restoreInvalidSnapshot(
+        final int snapshotEntryType,
         final long recordingId,
         final long leadershipTermId,
         final long termBaseLogPosition,
@@ -1602,7 +1615,8 @@ public final class RecordingLog implements AutoCloseable
             final int entryCacheIndex = invalidSnapshots.getInt(i);
             final Entry entry = entriesCache.get(entryCacheIndex);
 
-            if (matchesEntry(entry, leadershipTermId, termBaseLogPosition, logPosition, serviceId))
+            if (snapshotEntryType == entry.type &&
+                matchesEntry(entry, leadershipTermId, termBaseLogPosition, logPosition, serviceId))
             {
                 final Entry validatedEntry = new Entry(
                     recordingId,
@@ -1611,7 +1625,7 @@ public final class RecordingLog implements AutoCloseable
                     logPosition,
                     timestamp,
                     serviceId,
-                    ENTRY_TYPE_SNAPSHOT,
+                    snapshotEntryType,
                     null,
                     true,
                     entry.position,

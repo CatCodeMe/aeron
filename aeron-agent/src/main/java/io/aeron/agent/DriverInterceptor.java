@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -124,6 +124,35 @@ class DriverInterceptor
             {
                 LOGGER.logFlowControlReceiver(
                     FLOW_CONTROL_RECEIVER_REMOVED, receiverId, sessionId, streamId, channel, receiverCount);
+            }
+        }
+    }
+
+    static class Revoke
+    {
+        static class PublicationRevoke
+        {
+            @Advice.OnMethodEnter
+            static void logRevoke(
+                final long revokedPos,
+                final int sessionId,
+                final int streamId,
+                final String channel)
+            {
+                LOGGER.logPublicationRevoke(revokedPos, sessionId, streamId, channel);
+            }
+        }
+
+        static class PublicationImageRevoke
+        {
+            @Advice.OnMethodEnter
+            static void logRevoke(
+                final long revokedPos,
+                final int sessionId,
+                final int streamId,
+                final String channel)
+            {
+                LOGGER.logPublicationImageRevoke(revokedPos, sessionId, streamId, channel);
             }
         }
     }

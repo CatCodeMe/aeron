@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import static java.nio.ByteOrder.LITTLE_ENDIAN;
 /**
  * HeaderFlyweight for Setup Message Frames.
  * <p>
- * <a target="_blank" href="https://github.com/real-logic/aeron/wiki/Transport-Protocol-Specification#stream-setup">
+ * <a target="_blank" href="https://github.com/aeron-io/aeron/wiki/Transport-Protocol-Specification#stream-setup">
  *     Stream Setup</a> wiki page.
  */
 public class SetupFlyweight extends HeaderFlyweight

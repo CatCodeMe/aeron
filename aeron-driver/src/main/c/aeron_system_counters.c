@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,10 @@ static aeron_system_counter_t system_counters[] =
         { "Retransmitted bytes", AERON_SYSTEM_COUNTER_RETRANSMITTED_BYTES },
         { "Retransmit Pool Overflow count", AERON_SYSTEM_COUNTER_RETRANSMIT_OVERFLOW },
         { "Error Frames received", AERON_SYSTEM_COUNTER_ERROR_FRAMES_RECEIVED },
-        { "Error Frames sent", AERON_SYSTEM_COUNTER_ERROR_FRAMES_SENT }
+        { "Error Frames sent", AERON_SYSTEM_COUNTER_ERROR_FRAMES_SENT },
+        { "Publications Revoked", AERON_SYSTEM_COUNTER_PUBLICATIONS_REVOKED },
+        { "Publication Images Revoked", AERON_SYSTEM_COUNTER_PUBLICATION_IMAGES_REVOKED },
+        { "Images rejected", AERON_SYSTEM_COUNTER_IMAGES_REJECTED }
     };
 
 static size_t num_system_counters = sizeof(system_counters) / sizeof(aeron_system_counter_t);

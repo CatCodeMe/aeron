@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,8 @@ import org.agrona.nio.TransportPoller;
 import java.nio.channels.SelectionKey;
 
 /**
- * Encapsulates the polling of a number of {@link UdpChannelTransport}s using whatever means provides the lowest latency.
+ * Encapsulates the polling of a number of {@link UdpChannelTransport}s using whatever means provides the
+ * lowest latency.
  */
 public abstract class UdpTransportPoller extends TransportPoller
 {
@@ -41,7 +42,7 @@ public abstract class UdpTransportPoller extends TransportPoller
     }
 
     /**
-     * Explicit event loop processing as a poll
+     * Explicit event loop processing as a poll.
      *
      * @return the number of frames processed.
      */

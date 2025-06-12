@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ template<typename Agent>
 class AgentInvoker
 {
 public:
-    AgentInvoker(Agent &agent, logbuffer::exception_handler_t &exceptionHandler) :
+    AgentInvoker(Agent &agent, util::exception_handler_t &exceptionHandler) :
         m_agent(agent),
         m_exceptionHandler(exceptionHandler)
     {
@@ -140,7 +140,7 @@ public:
 
 private:
     Agent &m_agent;
-    logbuffer::exception_handler_t &m_exceptionHandler;
+    util::exception_handler_t &m_exceptionHandler;
     bool m_isStarted = false;
     bool m_isRunning = false;
     bool m_isClosed = false;

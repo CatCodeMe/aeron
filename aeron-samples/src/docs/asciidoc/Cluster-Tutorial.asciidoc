@@ -1,6 +1,6 @@
 
 ////
-* Copyright 2014-2024 Real Logic Limited.
+* Copyright 2014-2025 Real Logic Limited.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -132,7 +132,7 @@ code, use the appropriate release version and build the projects.
 
 [subs = "attributes+"]
 ----
-> git clone https://github.com/real-logic/aeron.git
+> git clone https://github.com/aeron-io/aeron.git
 > cd aeron
 > git checkout -b my_tutorial {aeronVersion}
 > ./gradlew

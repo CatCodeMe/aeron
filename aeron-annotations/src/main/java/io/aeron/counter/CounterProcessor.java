@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,24 +29,21 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * AeronCounter processor
+ * AeronCounter processor.
  */
 @SupportedAnnotationTypes("io.aeron.counter.AeronCounter")
 public class CounterProcessor extends Processor
 {
-    @Override
     protected String getEnabledPropertyName()
     {
         return "aeron.build.counterProcessor.enabled";
     }
 
-    @Override
     protected String getPrintNotesPropertyName()
     {
         return "aeron.build.counterProcessor.printNotes";
     }
 
-    @Override
     protected String getFailOnErrorPropertyName()
     {
         return "aeron.build.counterProcessor.failOnError";
@@ -55,7 +52,6 @@ public class CounterProcessor extends Processor
     /**
      * {@inheritDoc}
      */
-    @Override
     public void doProcess(final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv)
     {
         final Map<String, CounterInfo> counterInfoMap = new HashMap<>();

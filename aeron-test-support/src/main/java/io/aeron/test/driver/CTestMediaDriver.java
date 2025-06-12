@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -226,10 +226,12 @@ public final class CTestMediaDriver implements TestMediaDriver
         environment.put("AERON_TERM_BUFFER_SPARSE_FILE", Boolean.toString(context.termBufferSparseFile()));
         environment.put("AERON_TERM_BUFFER_LENGTH", String.valueOf(context.publicationTermBufferLength()));
         environment.put("AERON_IPC_TERM_BUFFER_LENGTH", String.valueOf(context.ipcTermBufferLength()));
+        environment.put("AERON_FILE_PAGE_SIZE", String.valueOf(context.filePageSize()));
         environment.put(
             "AERON_PUBLICATION_UNBLOCK_TIMEOUT", String.valueOf(context.publicationUnblockTimeoutNs()));
         environment.put(
             "AERON_PUBLICATION_CONNECTION_TIMEOUT", String.valueOf(context.publicationConnectionTimeoutNs()));
+        environment.put("AERON_PUBLICATION_LINGER_TIMEOUT", String.valueOf(context.publicationLingerTimeoutNs()));
         environment.put("AERON_SPIES_SIMULATE_CONNECTION", Boolean.toString(context.spiesSimulateConnection()));
         environment.put("AERON_PERFORM_STORAGE_CHECKS", Boolean.toString(context.performStorageChecks()));
         if (null != context.threadingMode())

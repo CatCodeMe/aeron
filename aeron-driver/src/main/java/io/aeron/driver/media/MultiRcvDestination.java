@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.PortUnreachableException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 import static io.aeron.driver.media.ReceiveChannelEndpoint.DESTINATION_ADDRESS_TIMEOUT;
 import static io.aeron.driver.media.UdpChannelTransport.onSendError;
@@ -33,17 +34,15 @@ final class MultiRcvDestination
 
     private ReceiveDestinationTransport[] transports = EMPTY_TRANSPORTS;
 
-    void closeTransports(final DataTransportPoller poller)
+    void closeTransports(final ReceiveChannelEndpoint endpoint, final DataTransportPoller poller)
     {
         for (final ReceiveDestinationTransport transport : transports)
         {
             if (null != transport)
             {
+                poller.cancelRead(endpoint, transport);
                 transport.closeTransport();
-                if (null != poller)
-                {
-                    poller.selectNowWithoutProcessing();
-                }
+                poller.selectNowWithoutProcessing();
             }
         }
     }
@@ -193,5 +192,15 @@ final class MultiRcvDestination
         }
 
         return bytesSent;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public String toString()
+    {
+        return "MultiRcvDestination{" +
+            "transports=" + Arrays.toString(transports) +
+            '}';
     }
 }

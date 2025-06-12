@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -176,7 +176,7 @@ public class SendChannelEndpoint extends UdpChannelTransport
             requireNonNull(localSocketAddressIndicator, "localSocketAddressIndicator not allocated"),
             bindAddressAndPort(),
             context.countersMetaDataBuffer());
-        localSocketAddressIndicator.setOrdered(ChannelEndpointStatus.ACTIVE);
+        localSocketAddressIndicator.setRelease(ChannelEndpointStatus.ACTIVE);
     }
 
     /**
@@ -212,7 +212,7 @@ public class SendChannelEndpoint extends UdpChannelTransport
         }
 
         statusIndicator.appendToLabel(bindAddressAndPort());
-        statusIndicator.setOrdered(ChannelEndpointStatus.ACTIVE);
+        statusIndicator.setRelease(ChannelEndpointStatus.ACTIVE);
     }
 
     /**
@@ -356,7 +356,7 @@ public class SendChannelEndpoint extends UdpChannelTransport
             {
                 timeOfLastResolutionNs = nowNs;
                 final String endpoint = udpChannel.channelUri().get(CommonContext.ENDPOINT_PARAM_NAME);
-                conductorProxy.reResolveEndpoint(endpoint, this, udpChannel.remoteData());
+                conductorProxy.reResolveEndpoint(endpoint, this, connectAddress);
             }
         }
     }
@@ -380,7 +380,7 @@ public class SendChannelEndpoint extends UdpChannelTransport
         final int sessionId = msg.sessionId();
         final int streamId = msg.streamId();
 
-        statusMessagesReceived.incrementOrdered();
+        statusMessagesReceived.incrementRelease();
 
         if (null != multiSndDestination)
         {
@@ -421,7 +421,7 @@ public class SendChannelEndpoint extends UdpChannelTransport
         final int sessionId = msg.sessionId();
         final int streamId = msg.streamId();
 
-        errorMessagesReceived.incrementOrdered();
+        errorMessagesReceived.incrementRelease();
 
         final long destinationRegistrationId = (null != multiSndDestination) ?
             multiSndDestination.findRegistrationId(msg, srcAddress) : Aeron.NULL_VALUE;
@@ -453,7 +453,7 @@ public class SendChannelEndpoint extends UdpChannelTransport
         if (null != publication)
         {
             publication.onNak(msg.termId(), msg.termOffset(), msg.length());
-            nakMessagesReceived.incrementOrdered();
+            nakMessagesReceived.incrementRelease();
         }
     }
 
@@ -633,6 +633,17 @@ public class SendChannelEndpoint extends UdpChannelTransport
                 }
             }
         }
+    }
+
+    /**
+     * Does the channel have a matching tag?
+     *
+     * @param udpChannel with tag to match against.
+     * @return true if the channel matches on tag identity.
+     */
+    public boolean matchesTag(final UdpChannel udpChannel)
+    {
+        return udpChannel.matchesTag(super.udpChannel, null, connectAddress);
     }
 }
 
@@ -818,7 +829,7 @@ class ManualSndMultiDestination extends MultiSndDestination
         final Destination destination = new Destination(
             nanoClock.nanoTime(), channelUri.get(CommonContext.ENDPOINT_PARAM_NAME), address, registrationId);
         destinations = ArrayUtil.add(destinations, destination);
-        destinationsCounter.setOrdered(destinations.length);
+        destinationsCounter.setRelease(destinations.length);
     }
 
     void removeDestination(final ChannelUri channelUri, final InetSocketAddress address)
@@ -848,7 +859,7 @@ class ManualSndMultiDestination extends MultiSndDestination
             }
         }
 
-        destinationsCounter.setOrdered(destinations.length);
+        destinationsCounter.setRelease(destinations.length);
     }
 
     void removeDestination(final long destinationRegistrationId)
@@ -878,7 +889,7 @@ class ManualSndMultiDestination extends MultiSndDestination
             }
         }
 
-        destinationsCounter.setOrdered(destinations.length);
+        destinationsCounter.setRelease(destinations.length);
     }
 
     void checkForReResolution(
@@ -1017,7 +1028,7 @@ class DynamicSndMultiDestination extends MultiSndDestination
     private void add(final Destination destination)
     {
         destinations = ArrayUtil.add(destinations, destination);
-        destinationsCounter.setOrdered(destinations.length);
+        destinationsCounter.setRelease(destinations.length);
     }
 
     private void truncateDestinations(final int removedCount)
@@ -1034,7 +1045,7 @@ class DynamicSndMultiDestination extends MultiSndDestination
             destinations = Arrays.copyOf(destinations, newLength);
         }
 
-        destinationsCounter.setOrdered(destinations.length);
+        destinationsCounter.setRelease(destinations.length);
     }
 
     private void removeInactiveDestinations(final long nowNs)

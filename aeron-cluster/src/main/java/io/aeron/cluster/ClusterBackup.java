@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,6 +51,7 @@ import java.util.function.Supplier;
 
 import static io.aeron.AeronCounters.CLUSTER_BACKUP_SNAPSHOT_RETRIEVE_COUNT_TYPE_ID;
 import static io.aeron.CommonContext.ENDPOINT_PARAM_NAME;
+import static io.aeron.CommonContext.driverFilePageSize;
 import static io.aeron.cluster.ConsensusModule.Configuration.SERVICE_ID;
 import static io.aeron.cluster.service.ClusteredServiceContainer.Configuration.LIVENESS_TIMEOUT_MS;
 import static java.lang.System.getProperty;
@@ -187,7 +188,7 @@ public final class ClusterBackup implements AutoCloseable
     }
 
     /**
-     * Defines the type of node that this will receive log data from
+     * Defines the type of node that this will receive log data from.
      */
     public enum SourceType
     {
@@ -204,7 +205,6 @@ public final class ClusterBackup implements AutoCloseable
          */
         FOLLOWER
     }
-
 
     private final ClusterBackup.Context ctx;
     private final AgentInvoker agentInvoker;
@@ -542,7 +542,7 @@ public final class ClusterBackup implements AutoCloseable
         public static final String CLUSTER_INITIAL_REPLAY_START_PROP_NAME = "cluster.backup.initial.replay.start";
 
         /**
-         * Get the initial value for the cluster relay start
+         * Get the initial value for the cluster relay start.
          *
          * @return enum to determine where to start replaying the log from.
          * @see #CLUSTER_INITIAL_REPLAY_START_PROP_NAME
@@ -705,12 +705,15 @@ public final class ClusterBackup implements AutoCloseable
 
             if (null == markFile)
             {
+                final int filePageSize = null != aeron ? aeron.context().filePageSize() :
+                    driverFilePageSize(new File(aeronDirectoryName), epochClock, new CommonContext().driverTimeoutMs());
                 markFile = new ClusterMarkFile(
                     new File(markFileDir, ClusterMarkFile.FILENAME),
                     ClusterComponentType.BACKUP,
                     errorBufferLength,
                     epochClock,
-                    LIVENESS_TIMEOUT_MS);
+                    LIVENESS_TIMEOUT_MS,
+                    filePageSize);
             }
 
             MarkFile.ensureMarkFileLink(
@@ -737,7 +740,8 @@ public final class ClusterBackup implements AutoCloseable
                         .useConductorAgentInvoker(true)
                         .awaitingIdleStrategy(YieldingIdleStrategy.INSTANCE)
                         .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE)
-                        .clientLock(NoOpLock.INSTANCE));
+                        .clientLock(NoOpLock.INSTANCE)
+                        .clientName("cluster-backup clusterId=" + clusterId));
 
                 if (null == errorCounter)
                 {
@@ -757,7 +761,7 @@ public final class ClusterBackup implements AutoCloseable
                 throw new ClusterException("Aeron client must use a RethrowingErrorHandler");
             }
 
-            if (null == aeron.conductorAgentInvoker())
+            if (!aeron.context().useConductorAgentInvoker())
             {
                 throw new ClusterException("Aeron client must use conductor agent invoker");
             }
@@ -1849,7 +1853,7 @@ public final class ClusterBackup implements AutoCloseable
         }
 
         /**
-         * Get the currently configured source type
+         * Get the currently configured source type.
          *
          * @return source type for this backup instance.
          * @throws IllegalArgumentException if the configured source type is not one of {@link SourceType}
@@ -2022,11 +2026,7 @@ public final class ClusterBackup implements AutoCloseable
         private void concludeMarkFile()
         {
             ClusterMarkFile.checkHeaderLength(
-                aeron.context().aeronDirectoryName(),
-                null,
-                null,
-                null,
-                null);
+                aeron.context().aeronDirectoryName(), null, null, null, null);
 
             markFile.encoder()
                 .archiveStreamId(archiveContext.controlRequestStreamId())

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ import java.lang.management.ManagementFactory;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Main class for starting the provisioning service
+ * Main class for starting the provisioning service.
  */
 public final class ProvisioningServerMain implements Agent, AutoCloseable
 {
@@ -53,7 +53,7 @@ public final class ProvisioningServerMain implements Agent, AutoCloseable
     /**
      * Entry point for starting the provisioning service.
      *
-     * @param args command line arguments
+     * @param args command line arguments.
      */
     @SuppressWarnings("try")
     public static void main(final String[] args)
@@ -68,10 +68,10 @@ public final class ProvisioningServerMain implements Agent, AutoCloseable
     }
 
     /**
-     * Launch the provisioning server
+     * Launch the provisioning server.
      *
-     * @param context Aeron client context to connect to the local media driver
-     * @return new ProvisionServerMain instance
+     * @param context Aeron client context to connect to the local media driver.
+     * @return new ProvisionServerMain instance.
      */
     public static ProvisioningServerMain launch(final Aeron.Context context)
     {
@@ -140,6 +140,7 @@ public final class ProvisioningServerMain implements Agent, AutoCloseable
             {
             }
         }
+
         CloseHelper.quietCloseAll(runner, aeron, driver);
     }
 }

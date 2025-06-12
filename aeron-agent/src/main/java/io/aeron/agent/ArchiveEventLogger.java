@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -106,7 +106,7 @@ public final class ArchiveEventLogger
     }
 
     /**
-     * Log a state change event for an archive replay session
+     * Log a state change event for an archive replay session.
      *
      * @param <E>         type representing the state change.
      * @param oldState    before the change.
@@ -114,8 +114,8 @@ public final class ArchiveEventLogger
      * @param sessionId   identity for the replay session on the Archive.
      * @param recordingId recording id on the Archive.
      * @param position    position of state change ({@link io.aeron.archive.client.AeronArchive#NULL_POSITION}
-     *                    if not relevant)
-     * @param reason      a string indicating the reason for the state change
+     *                    if not relevant).
+     * @param reason      a string indicating the reason for the state change.
      */
     public <E extends Enum<E>> void logReplaySessionStateChange(
         final E oldState,
@@ -155,15 +155,15 @@ public final class ArchiveEventLogger
     }
 
     /**
-     * Log a state change event for an archive recording session
+     * Log a state change event for an archive recording session.
      *
      * @param <E>         type representing the state change.
      * @param oldState    before the change.
      * @param newState    after the change.
      * @param recordingId recording id on the Archive.
      * @param position    position of state change ({@link io.aeron.archive.client.AeronArchive#NULL_POSITION}
-     *                    if not relevant)
-     * @param reason      a string indicating the reason for the state change
+     *                    if not relevant).
+     * @param reason      a string indicating the reason for the state change.
      */
     public <E extends Enum<E>> void logRecordingSessionStateChange(
         final E oldState,
@@ -201,7 +201,7 @@ public final class ArchiveEventLogger
     }
 
     /**
-     * Log a state change event for an archive replication session
+     * Log a state change event for an archive replication session.
      *
      * @param <E>            type representing the state change.
      * @param oldState       before the change.
@@ -210,8 +210,8 @@ public final class ArchiveEventLogger
      * @param srcRecordingId source recording id on the Archive.
      * @param dstRecordingId destination recording id on the Archive.
      * @param position       position of state change ({@link io.aeron.archive.client.AeronArchive#NULL_POSITION}
-     *                       if not relevant)
-     * @param reason         a string indicating the reason for the state change
+     *                       if not relevant).
+     * @param reason         a string indicating the reason for the state change.
      */
     public <E extends Enum<E>> void logReplicationSessionStateChange(
         final E oldState,
@@ -226,7 +226,7 @@ public final class ArchiveEventLogger
         final int captureLength = captureLength(length);
         final int encodedLength = encodedLength(captureLength);
         final ManyToOneRingBuffer ringBuffer = this.ringBuffer;
-        final int index = ringBuffer.tryClaim(RECORDING_SESSION_STATE_CHANGE.toEventCodeId(), encodedLength);
+        final int index = ringBuffer.tryClaim(REPLICATION_SESSION_STATE_CHANGE.toEventCodeId(), encodedLength);
 
         if (index > 0)
         {
@@ -253,19 +253,21 @@ public final class ArchiveEventLogger
     }
 
     /**
-     * Log a state change event for an archive control session
+     * Log a state change event for an archive control session.
      *
      * @param <E>              type representing the state change.
      * @param oldState         before the change.
      * @param newState         after the change.
      * @param controlSessionId identity for the control session on the Archive.
+     * @param reason           a string indicating the reason for the state change.
      */
     public <E extends Enum<E>> void logControlSessionStateChange(
         final E oldState,
         final E newState,
-        final long controlSessionId)
+        final long controlSessionId,
+        final String reason)
     {
-        final int length = sessionStateChangeLength(oldState, newState);
+        final int length = sessionStateChangeLength(oldState, newState, reason);
         final int captureLength = captureLength(length);
         final int encodedLength = encodedLength(captureLength);
         final ManyToOneRingBuffer ringBuffer = this.ringBuffer;
@@ -275,15 +277,15 @@ public final class ArchiveEventLogger
         {
             try
             {
-                encodeSessionStateChange(
+                encodeControlSessionStateChange(
                     (UnsafeBuffer)ringBuffer.buffer(),
                     index,
                     captureLength,
                     length,
                     oldState,
                     newState,
-                    controlSessionId
-                );
+                    controlSessionId,
+                    reason);
             }
             finally
             {

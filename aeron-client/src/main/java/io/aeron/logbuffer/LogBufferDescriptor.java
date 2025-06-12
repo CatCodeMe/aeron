@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,8 @@ import static org.agrona.BitUtil.*;
  */
 public class LogBufferDescriptor
 {
+    private static final int PADDING_SIZE = 64;
+
     /**
      * The number of partitions the log is divided into.
      */
@@ -138,7 +140,128 @@ public class LogBufferDescriptor
     /**
      * Maximum length of a frame header.
      */
-    public static final int LOG_DEFAULT_FRAME_HEADER_MAX_LENGTH = CACHE_LINE_LENGTH * 2;
+    public static final int LOG_DEFAULT_FRAME_HEADER_MAX_LENGTH = PADDING_SIZE * 2;
+
+    /**
+     * Offset within the log metadata where the sparse property is stored.
+     */
+    public static final int LOG_SPARSE_OFFSET;
+
+    /**
+     * Offset within the log metadata where the tether property is stored.
+     */
+    public static final int LOG_TETHER_OFFSET;
+
+    /**
+     * Offset within the log metadata where the 'publication revoked' status is indicated.
+     */
+    public static final int LOG_IS_PUBLICATION_REVOKED_OFFSET;
+
+    /**
+     * Offset within the log metadata where the rejoin property is stored.
+     */
+    public static final int LOG_REJOIN_OFFSET;
+
+    /**
+     * Offset within the log metadata where the reliable property is stored.
+     */
+    public static final int LOG_RELIABLE_OFFSET;
+
+    /**
+     * Offset within the log metadata where the socket receive buffer length is stored.
+     */
+    public static final int LOG_SOCKET_RCVBUF_LENGTH_OFFSET;
+
+    /**
+     * Offset within the log metadata where the OS default length for the socket receive buffer is stored.
+     */
+    public static final int LOG_OS_DEFAULT_SOCKET_RCVBUF_LENGTH_OFFSET;
+
+    /**
+     * Offset within the log metadata where the OS maximum length for the socket receive buffer is stored.
+     */
+    public static final int LOG_OS_MAX_SOCKET_RCVBUF_LENGTH_OFFSET;
+
+    /**
+     * Offset within the log metadata where the socket send buffer length is stored.
+     */
+    public static final int LOG_SOCKET_SNDBUF_LENGTH_OFFSET;
+
+    /**
+     * Offset within the log metadata where the OS default length for the socket send buffer is stored.
+     */
+    public static final int LOG_OS_DEFAULT_SOCKET_SNDBUF_LENGTH_OFFSET;
+
+    /**
+     * Offset within the log metadata where the OS maximum length for the socket send buffer is stored.
+     */
+    public static final int LOG_OS_MAX_SOCKET_SNDBUF_LENGTH_OFFSET;
+
+    /**
+     * Offset within the log metadata where the receiver window length is stored.
+     */
+    public static final int LOG_RECEIVER_WINDOW_LENGTH_OFFSET;
+
+    /**
+     * Offset within the log metadata where the publication window length is stored.
+     */
+    public static final int LOG_PUBLICATION_WINDOW_LENGTH_OFFSET;
+
+    /**
+     * Offset within the log metadata where the untethered window limit timeout ns is stored.
+     */
+    public static final int LOG_UNTETHERED_WINDOW_LIMIT_TIMEOUT_NS_OFFSET;
+
+    /**
+     * Offset within the log metadata where the untethered linger timeout ns is stored.
+     */
+    public static final int LOG_UNTETHERED_LINGER_TIMEOUT_NS_OFFSET;
+
+    /**
+     * Offset within the log metadata where the untethered resting timeout ns is stored.
+     */
+    public static final int LOG_UNTETHERED_RESTING_TIMEOUT_NS_OFFSET;
+
+    /**
+     * Offset within the log metadata where the max resend is stored.
+     */
+    public static final int LOG_MAX_RESEND_OFFSET;
+
+    /**
+     * Offset within the log metadata where the linger timeout ns is stored.
+     */
+    public static final int LOG_LINGER_TIMEOUT_NS_OFFSET;
+
+    /**
+     * Offset within the log metadata where the signal-eos is stored.
+     */
+    public static final int LOG_SIGNAL_EOS_OFFSET;
+
+    /**
+     * Offset within the log metadata where the spies-simulate-connection is stored.
+     */
+    public static final int LOG_SPIES_SIMULATE_CONNECTION_OFFSET;
+
+    /**
+     * Offset within the log metadata where the group is stored.
+     */
+    public static final int LOG_GROUP_OFFSET;
+
+    /**
+     * Offset within the log metadata where the entity tag is stored.
+     */
+    public static final int LOG_ENTITY_TAG_OFFSET;
+
+    /**
+     * Offset within the log metadata where the response correlation id is stored.
+     */
+    public static final int LOG_RESPONSE_CORRELATION_ID_OFFSET;
+
+    /**
+     * Offset within the log metadata where is-response is stored.
+     */
+    public static final int LOG_IS_RESPONSE_OFFSET;
+
 
     /**
      * Total length of the log metadata buffer in bytes.
@@ -183,11 +306,64 @@ public class LogBufferDescriptor
      *  +---------------------------------------------------------------+
      *  |                          Page Size                            |
      *  +---------------------------------------------------------------+
-     *  |                      Cache Line Padding                      ...
-     * ...                                                              |
+     *  |                    Publication Window Length                  |
+     *  +---------------------------------------------------------------+
+     *  |                      Receiver Window Length                   |
+     *  +---------------------------------------------------------------+
+     *  |                    Socket Send Buffer Length                  |
+     *  +---------------------------------------------------------------+
+     *  |               OS Default Socket Send Buffer Length            |
+     *  +---------------------------------------------------------------+
+     *  |                OS Max Socket Send Buffer Length               |
+     *  +---------------------------------------------------------------+
+     *  |                  Socket Receive Buffer Length                 |
+     *  +---------------------------------------------------------------+
+     *  |              OS Default Socket Receive Buffer Length          |
+     *  +---------------------------------------------------------------+
+     *  |               OS Max Socket Receive Buffer Length             |
+     *  +---------------------------------------------------------------+
+     *  |                        Maximum Resend                         |
+     *  +---------------------------------------------------------------+
+     *  |                           Entity tag                          |
+     *  |                                                               |
+     *  +---------------------------------------------------------------+
+     *  |                    Response correlation id                    |
+     *  |                                                               |
      *  +---------------------------------------------------------------+
      *  |                     Default Frame Header                     ...
      * ...                                                              |
+     *  +---------------------------------------------------------------+
+     *  |                        Linger Timeout (ns)                    |
+     *  |                                                               |
+     *  +---------------------------------------------------------------+
+     *  |               Untethered Window Limit Timeout (ns)            |
+     *  |                                                               |
+     *  +---------------------------------------------------------------+
+     *  |                 Untethered Resting Timeout (ns)               |
+     *  |                                                               |
+     *  +---------------------------------------------------------------+
+     *  |                            Group                              |
+     *  +---------------------------------------------------------------+
+     *  |                          Is response                          |
+     *  +---------------------------------------------------------------+
+     *  |                            Rejoin                             |
+     *  +---------------------------------------------------------------+
+     *  |                           Reliable                            |
+     *  +---------------------------------------------------------------+
+     *  |                            Sparse                             |
+     *  +---------------------------------------------------------------+
+     *  |                         Signal EOS                            |
+     *  +---------------------------------------------------------------+
+     *  |                 Spies Simulate Connection                     |
+     *  +---------------------------------------------------------------+
+     *  |                          Tether                               |
+     *  +---------------------------------------------------------------+
+     *  |                     Is publication revoked                    |
+     *  +---------------------------------------------------------------+
+     *  |                         Alignment gap                         |
+     *  +---------------------------------------------------------------+
+     *  |                  Untethered Linger Timeout (ns)               |
+     *  |                                                               |
      *  +---------------------------------------------------------------+
      * </pre>
      */
@@ -195,29 +371,48 @@ public class LogBufferDescriptor
 
     static
     {
-        int offset = 0;
-        TERM_TAIL_COUNTERS_OFFSET = offset;
+        TERM_TAIL_COUNTERS_OFFSET = 0;
+        LOG_ACTIVE_TERM_COUNT_OFFSET = TERM_TAIL_COUNTERS_OFFSET + (SIZE_OF_LONG * PARTITION_COUNT);
 
-        offset += (SIZE_OF_LONG * PARTITION_COUNT);
-        LOG_ACTIVE_TERM_COUNT_OFFSET = offset;
-
-        offset = (CACHE_LINE_LENGTH * 2);
-        LOG_END_OF_STREAM_POSITION_OFFSET = offset;
+        LOG_END_OF_STREAM_POSITION_OFFSET = PADDING_SIZE * 2;
         LOG_IS_CONNECTED_OFFSET = LOG_END_OF_STREAM_POSITION_OFFSET + SIZE_OF_LONG;
         LOG_ACTIVE_TRANSPORT_COUNT = LOG_IS_CONNECTED_OFFSET + SIZE_OF_INT;
 
-        offset += (CACHE_LINE_LENGTH * 2);
-        LOG_CORRELATION_ID_OFFSET = offset;
+        LOG_CORRELATION_ID_OFFSET = PADDING_SIZE * 4;
         LOG_INITIAL_TERM_ID_OFFSET = LOG_CORRELATION_ID_OFFSET + SIZE_OF_LONG;
         LOG_DEFAULT_FRAME_HEADER_LENGTH_OFFSET = LOG_INITIAL_TERM_ID_OFFSET + SIZE_OF_INT;
         LOG_MTU_LENGTH_OFFSET = LOG_DEFAULT_FRAME_HEADER_LENGTH_OFFSET + SIZE_OF_INT;
         LOG_TERM_LENGTH_OFFSET = LOG_MTU_LENGTH_OFFSET + SIZE_OF_INT;
         LOG_PAGE_SIZE_OFFSET = LOG_TERM_LENGTH_OFFSET + SIZE_OF_INT;
 
-        offset += CACHE_LINE_LENGTH;
-        LOG_DEFAULT_FRAME_HEADER_OFFSET = offset;
+        LOG_PUBLICATION_WINDOW_LENGTH_OFFSET = LOG_PAGE_SIZE_OFFSET + SIZE_OF_INT;
+        LOG_RECEIVER_WINDOW_LENGTH_OFFSET = LOG_PUBLICATION_WINDOW_LENGTH_OFFSET + SIZE_OF_INT;
+        LOG_SOCKET_SNDBUF_LENGTH_OFFSET = LOG_RECEIVER_WINDOW_LENGTH_OFFSET + SIZE_OF_INT;
+        LOG_OS_DEFAULT_SOCKET_SNDBUF_LENGTH_OFFSET = LOG_SOCKET_SNDBUF_LENGTH_OFFSET + SIZE_OF_INT;
+        LOG_OS_MAX_SOCKET_SNDBUF_LENGTH_OFFSET = LOG_OS_DEFAULT_SOCKET_SNDBUF_LENGTH_OFFSET + SIZE_OF_INT;
+        LOG_SOCKET_RCVBUF_LENGTH_OFFSET = LOG_OS_MAX_SOCKET_SNDBUF_LENGTH_OFFSET + SIZE_OF_INT;
+        LOG_OS_DEFAULT_SOCKET_RCVBUF_LENGTH_OFFSET = LOG_SOCKET_RCVBUF_LENGTH_OFFSET + SIZE_OF_INT;
+        LOG_OS_MAX_SOCKET_RCVBUF_LENGTH_OFFSET = LOG_OS_DEFAULT_SOCKET_RCVBUF_LENGTH_OFFSET + SIZE_OF_INT;
+        LOG_MAX_RESEND_OFFSET = LOG_OS_MAX_SOCKET_RCVBUF_LENGTH_OFFSET + SIZE_OF_INT;
 
-        LOG_META_DATA_LENGTH = align(offset + LOG_DEFAULT_FRAME_HEADER_MAX_LENGTH, PAGE_MIN_SIZE);
+        LOG_DEFAULT_FRAME_HEADER_OFFSET = PADDING_SIZE * 5;
+        LOG_ENTITY_TAG_OFFSET = LOG_DEFAULT_FRAME_HEADER_OFFSET + LOG_DEFAULT_FRAME_HEADER_MAX_LENGTH;
+        LOG_RESPONSE_CORRELATION_ID_OFFSET = LOG_ENTITY_TAG_OFFSET + SIZE_OF_LONG;
+        LOG_LINGER_TIMEOUT_NS_OFFSET = LOG_RESPONSE_CORRELATION_ID_OFFSET + SIZE_OF_LONG;
+        LOG_UNTETHERED_WINDOW_LIMIT_TIMEOUT_NS_OFFSET = LOG_LINGER_TIMEOUT_NS_OFFSET + SIZE_OF_LONG;
+        LOG_UNTETHERED_RESTING_TIMEOUT_NS_OFFSET = LOG_UNTETHERED_WINDOW_LIMIT_TIMEOUT_NS_OFFSET + SIZE_OF_LONG;
+        LOG_GROUP_OFFSET = LOG_UNTETHERED_RESTING_TIMEOUT_NS_OFFSET + SIZE_OF_LONG;
+        LOG_IS_RESPONSE_OFFSET = LOG_GROUP_OFFSET + SIZE_OF_BYTE;
+        LOG_REJOIN_OFFSET = LOG_IS_RESPONSE_OFFSET + SIZE_OF_BYTE;
+        LOG_RELIABLE_OFFSET = LOG_REJOIN_OFFSET + SIZE_OF_BYTE;
+        LOG_SPARSE_OFFSET = LOG_RELIABLE_OFFSET + SIZE_OF_BYTE;
+        LOG_SIGNAL_EOS_OFFSET = LOG_SPARSE_OFFSET + SIZE_OF_BYTE;
+        LOG_SPIES_SIMULATE_CONNECTION_OFFSET = LOG_SIGNAL_EOS_OFFSET + SIZE_OF_BYTE;
+        LOG_TETHER_OFFSET = LOG_SPIES_SIMULATE_CONNECTION_OFFSET + SIZE_OF_BYTE;
+        LOG_IS_PUBLICATION_REVOKED_OFFSET = LOG_TETHER_OFFSET + SIZE_OF_BYTE;
+        LOG_UNTETHERED_LINGER_TIMEOUT_NS_OFFSET = LOG_IS_PUBLICATION_REVOKED_OFFSET + SIZE_OF_INT;
+
+        LOG_META_DATA_LENGTH = PAGE_MIN_SIZE;
     }
 
     /**
@@ -402,7 +597,7 @@ public class LogBufferDescriptor
      */
     public static void isConnected(final UnsafeBuffer metadataBuffer, final boolean isConnected)
     {
-        metadataBuffer.putIntOrdered(LOG_IS_CONNECTED_OFFSET, isConnected ? 1 : 0);
+        metadataBuffer.putIntRelease(LOG_IS_CONNECTED_OFFSET, isConnected ? 1 : 0);
     }
 
     /**
@@ -419,12 +614,12 @@ public class LogBufferDescriptor
     /**
      * Set the number of active transports for the Image.
      *
-     * @param metadataBuffer containing the meta data.
+     * @param metadataBuffer           containing the meta data.
      * @param numberOfActiveTransports value to be set.
      */
     public static void activeTransportCount(final UnsafeBuffer metadataBuffer, final int numberOfActiveTransports)
     {
-        metadataBuffer.putIntOrdered(LOG_ACTIVE_TRANSPORT_COUNT, numberOfActiveTransports);
+        metadataBuffer.putIntRelease(LOG_ACTIVE_TRANSPORT_COUNT, numberOfActiveTransports);
     }
 
     /**
@@ -446,7 +641,7 @@ public class LogBufferDescriptor
      */
     public static void endOfStreamPosition(final UnsafeBuffer metadataBuffer, final long position)
     {
-        metadataBuffer.putLongOrdered(LOG_END_OF_STREAM_POSITION_OFFSET, position);
+        metadataBuffer.putLongRelease(LOG_END_OF_STREAM_POSITION_OFFSET, position);
     }
 
     /**
@@ -462,14 +657,14 @@ public class LogBufferDescriptor
     }
 
     /**
-     * Set the value of the current active term count for the producer using memory ordered semantics.
+     * Set the value of the current active term count for the producer using memory release semantics.
      *
      * @param metadataBuffer containing the meta data.
      * @param termCount      value of the active term count used by the producer of this log.
      */
     public static void activeTermCountOrdered(final UnsafeBuffer metadataBuffer, final int termCount)
     {
-        metadataBuffer.putIntOrdered(LOG_ACTIVE_TERM_COUNT_OFFSET, termCount);
+        metadataBuffer.putIntRelease(LOG_ACTIVE_TERM_COUNT_OFFSET, termCount);
     }
 
     /**
@@ -601,12 +796,7 @@ public class LogBufferDescriptor
      */
     public static long computeLogLength(final int termLength, final int filePageSize)
     {
-        if (termLength < (1024 * 1024 * 1024))
-        {
-            return align((termLength * PARTITION_COUNT) + LOG_META_DATA_LENGTH, filePageSize);
-        }
-
-        return (PARTITION_COUNT * (long)termLength) + align(LOG_META_DATA_LENGTH, filePageSize);
+        return align((PARTITION_COUNT * (long)termLength) + LOG_META_DATA_LENGTH, filePageSize);
     }
 
     /**
@@ -831,61 +1021,31 @@ public class LogBufferDescriptor
      */
     public static int positionBitsToShift(final int termBufferLength)
     {
-        switch (termBufferLength)
+        return switch (termBufferLength)
         {
-            case 64 * 1024:
-                return 16;
-
-            case 128 * 1024:
-                return 17;
-
-            case 256 * 1024:
-                return 18;
-
-            case 512 * 1024:
-                return 19;
-
-            case 1024 * 1024:
-                return 20;
-
-            case 2 * 1024 * 1024:
-                return 21;
-
-            case 4 * 1024 * 1024:
-                return 22;
-
-            case 8 * 1024 * 1024:
-                return 23;
-
-            case 16 * 1024 * 1024:
-                return 24;
-
-            case 32 * 1024 * 1024:
-                return 25;
-
-            case 64 * 1024 * 1024:
-                return 26;
-
-            case 128 * 1024 * 1024:
-                return 27;
-
-            case 256 * 1024 * 1024:
-                return 28;
-
-            case 512 * 1024 * 1024:
-                return 29;
-
-            case 1024 * 1024 * 1024:
-                return 30;
-        }
-
-        throw new IllegalArgumentException("invalid term buffer length: " + termBufferLength);
+            case 64 * 1024 -> 16;
+            case 128 * 1024 -> 17;
+            case 256 * 1024 -> 18;
+            case 512 * 1024 -> 19;
+            case 1024 * 1024 -> 20;
+            case 2 * 1024 * 1024 -> 21;
+            case 4 * 1024 * 1024 -> 22;
+            case 8 * 1024 * 1024 -> 23;
+            case 16 * 1024 * 1024 -> 24;
+            case 32 * 1024 * 1024 -> 25;
+            case 64 * 1024 * 1024 -> 26;
+            case 128 * 1024 * 1024 -> 27;
+            case 256 * 1024 * 1024 -> 28;
+            case 512 * 1024 * 1024 -> 29;
+            case 1024 * 1024 * 1024 -> 30;
+            default -> throw new IllegalArgumentException("invalid term buffer length: " + termBufferLength);
+        };
     }
 
     /**
      * Compute frame length for a message that is fragmented into chunks of {@code maxPayloadSize}.
      *
-     * @param length of the message.
+     * @param length         of the message.
      * @param maxPayloadSize fragment size without the header.
      * @return message length after fragmentation.
      */
@@ -902,7 +1062,7 @@ public class LogBufferDescriptor
     /**
      * Compute frame length for a message that has been reassembled from chunks of {@code maxPayloadSize}.
      *
-     * @param length of the message.
+     * @param length         of the message.
      * @param maxPayloadSize fragment size without the header.
      * @return message length after fragmentation.
      */
@@ -912,5 +1072,534 @@ public class LogBufferDescriptor
         final int remainingPayload = length % maxPayloadSize;
 
         return HEADER_LENGTH + (numMaxPayloads * maxPayloadSize) + remainingPayload;
+    }
+
+    /**
+     * Get whether the log is sparse from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return true if the log is sparse, otherwise false.
+     */
+    public static boolean sparse(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getByte(LOG_SPARSE_OFFSET) == 1;
+    }
+
+    /**
+     * Set whether the log is sparse in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          true if the log is sparse, otherwise false.
+     */
+    public static void sparse(final UnsafeBuffer metadataBuffer, final boolean value)
+    {
+        metadataBuffer.putByte(LOG_SPARSE_OFFSET, (byte)(value ? 1 : 0));
+    }
+
+    /**
+     * Get whether the log is tethered from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return true if the log is tethered, otherwise false.
+     */
+    public static boolean tether(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getByte(LOG_TETHER_OFFSET) == 1;
+    }
+
+    /**
+     * Set whether the log is tethered in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          true if the log is tethered, otherwise false.
+     */
+    public static void tether(final UnsafeBuffer metadataBuffer, final boolean value)
+    {
+        metadataBuffer.putByte(LOG_TETHER_OFFSET, (byte)(value ? 1 : 0));
+    }
+
+    /**
+     * Get whether the log's publication was revoked.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return true if the log's publication was revoked, otherwise false.
+     */
+    public static boolean isPublicationRevoked(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getByte(LOG_IS_PUBLICATION_REVOKED_OFFSET) == 1;
+    }
+
+    /**
+     * Set whether the log's publication was revoked.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          true if the log's publication was revoked, otherwise false.
+     */
+    public static void isPublicationRevoked(final UnsafeBuffer metadataBuffer, final boolean value)
+    {
+        metadataBuffer.putByte(LOG_IS_PUBLICATION_REVOKED_OFFSET, (byte)(value ? 1 : 0));
+    }
+
+    /**
+     * Get whether the log is group from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return true if the log is group, otherwise false.
+     */
+    public static boolean group(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getByte(LOG_GROUP_OFFSET) == 1;
+    }
+
+    /**
+     * Set whether the log is group in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          true if the log is group, otherwise false.
+     */
+    public static void group(final UnsafeBuffer metadataBuffer, final boolean value)
+    {
+        metadataBuffer.putByte(LOG_GROUP_OFFSET, (byte)(value ? 1 : 0));
+    }
+
+    /**
+     * Get whether the log is response from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return true if the log is group, otherwise false.
+     */
+    public static boolean isResponse(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getByte(LOG_IS_RESPONSE_OFFSET) == 1;
+    }
+
+    /**
+     * Set whether the log is response in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          true if the log is group, otherwise false.
+     */
+    public static void isResponse(final UnsafeBuffer metadataBuffer, final boolean value)
+    {
+        metadataBuffer.putByte(LOG_IS_RESPONSE_OFFSET, (byte)(value ? 1 : 0));
+    }
+
+
+    /**
+     * Get whether the log is rejoining from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return true if the log is rejoining, otherwise false.
+     */
+    public static boolean rejoin(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getByte(LOG_REJOIN_OFFSET) == 1;
+    }
+
+    /**
+     * Set whether the log is rejoining in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          true if the log is rejoining, otherwise false.
+     */
+    public static void rejoin(final UnsafeBuffer metadataBuffer, final boolean value)
+    {
+        metadataBuffer.putByte(LOG_REJOIN_OFFSET, (byte)(value ? 1 : 0));
+    }
+
+    /**
+     * Get whether the log is reliable from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return true if the log is reliable, otherwise false.
+     */
+    public static boolean reliable(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getByte(LOG_RELIABLE_OFFSET) == 1;
+    }
+
+    /**
+     * Set whether the log is reliable in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          true if the log is reliable, otherwise false.
+     */
+    public static void reliable(final UnsafeBuffer metadataBuffer, final boolean value)
+    {
+        metadataBuffer.putByte(LOG_RELIABLE_OFFSET, (byte)(value ? 1 : 0));
+    }
+
+    /**
+     * Get the socket receive buffer length from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the socket receive buffer length.
+     */
+    public static int socketRcvbufLength(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getInt(LOG_SOCKET_RCVBUF_LENGTH_OFFSET);
+    }
+
+    /**
+     * Set the socket receive buffer length in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the socket receive buffer length to set.
+     */
+    public static void socketRcvbufLength(final UnsafeBuffer metadataBuffer, final int value)
+    {
+        metadataBuffer.putInt(LOG_SOCKET_RCVBUF_LENGTH_OFFSET, value);
+    }
+
+    /**
+     * Get the default length in bytes for the socket receive buffer as per OS configuration from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the default length in bytes for the socket receive buffer.
+     */
+    public static int osDefaultSocketRcvbufLength(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getInt(LOG_OS_DEFAULT_SOCKET_RCVBUF_LENGTH_OFFSET);
+    }
+
+    /**
+     * Set the default length for the socket receive buffer as per OS configuration in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the default length in bytes for the socket receive buffer.
+     */
+    public static void osDefaultSocketRcvbufLength(final UnsafeBuffer metadataBuffer, final int value)
+    {
+        metadataBuffer.putInt(LOG_OS_DEFAULT_SOCKET_RCVBUF_LENGTH_OFFSET, value);
+    }
+
+    /**
+     * Get the maximum length in bytes for the socket receive buffer as per OS configuration from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the maximum allowed length in bytes for the socket receive buffer.
+     */
+    public static int osMaxSocketRcvbufLength(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getInt(LOG_OS_MAX_SOCKET_RCVBUF_LENGTH_OFFSET);
+    }
+
+    /**
+     * Set the maximum allowed length in bytes for the socket receive buffer as per OS configuration in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the maximum allowed length in bytes for the socket receive buffer.
+     */
+    public static void osMaxSocketRcvbufLength(final UnsafeBuffer metadataBuffer, final int value)
+    {
+        metadataBuffer.putInt(LOG_OS_MAX_SOCKET_RCVBUF_LENGTH_OFFSET, value);
+    }
+
+    /**
+     * Get the socket send buffer length from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the socket send buffer length.
+     */
+    public static int socketSndbufLength(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getInt(LOG_SOCKET_SNDBUF_LENGTH_OFFSET);
+    }
+
+    /**
+     * Set the socket send buffer length in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the socket send buffer length to set.
+     */
+    public static void socketSndbufLength(final UnsafeBuffer metadataBuffer, final int value)
+    {
+        metadataBuffer.putInt(LOG_SOCKET_SNDBUF_LENGTH_OFFSET, value);
+    }
+
+    /**
+     * Get the default length in bytes for the socket send buffer as per OS configuration from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the default length in bytes for the socket send buffer.
+     */
+    public static int osDefaultSocketSndbufLength(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getInt(LOG_OS_DEFAULT_SOCKET_SNDBUF_LENGTH_OFFSET);
+    }
+
+    /**
+     * Set the default length for the socket send buffer as per OS configuration in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the default length in bytes for the socket send buffer.
+     */
+    public static void osDefaultSocketSndbufLength(final UnsafeBuffer metadataBuffer, final int value)
+    {
+        metadataBuffer.putInt(LOG_OS_DEFAULT_SOCKET_SNDBUF_LENGTH_OFFSET, value);
+    }
+
+    /**
+     * Get the maximum length in bytes for the socket send buffer as per OS configuration from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the maximum allowed length in bytes for the socket send buffer.
+     */
+    public static int osMaxSocketSndbufLength(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getInt(LOG_OS_MAX_SOCKET_SNDBUF_LENGTH_OFFSET);
+    }
+
+    /**
+     * Set the maximum allowed length in bytes for the socket send buffer as per OS configuration in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the maximum allowed length in bytes for the socket send buffer.
+     */
+    public static void osMaxSocketSndbufLength(final UnsafeBuffer metadataBuffer, final int value)
+    {
+        metadataBuffer.putInt(LOG_OS_MAX_SOCKET_SNDBUF_LENGTH_OFFSET, value);
+    }
+
+    /**
+     * Get the receiver window length from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the receiver window length.
+     */
+    public static int receiverWindowLength(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getInt(LOG_RECEIVER_WINDOW_LENGTH_OFFSET);
+    }
+
+    /**
+     * Set the receiver window length in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the receiver window length to set.
+     */
+    public static void receiverWindowLength(final UnsafeBuffer metadataBuffer, final int value)
+    {
+        metadataBuffer.putInt(LOG_RECEIVER_WINDOW_LENGTH_OFFSET, value);
+    }
+
+    /**
+     * Get the publication window length from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the publication window length.
+     */
+    public static int publicationWindowLength(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getInt(LOG_PUBLICATION_WINDOW_LENGTH_OFFSET);
+    }
+
+    /**
+     * Set the publication window length in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the publication window length to set.
+     */
+    public static void publicationWindowLength(final UnsafeBuffer metadataBuffer, final int value)
+    {
+        metadataBuffer.putInt(LOG_PUBLICATION_WINDOW_LENGTH_OFFSET, value);
+    }
+
+    /**
+     * Get the untethered window limit timeout in nanoseconds from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the untethered window limit timeout in nanoseconds.
+     */
+    public static long untetheredWindowLimitTimeoutNs(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getLong(LOG_UNTETHERED_WINDOW_LIMIT_TIMEOUT_NS_OFFSET);
+    }
+
+    /**
+     * Set the untethered window limit timeout in nanoseconds in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the untethered window limit timeout to set.
+     */
+    public static void untetheredWindowLimitTimeoutNs(final UnsafeBuffer metadataBuffer, final long value)
+    {
+        metadataBuffer.putLong(LOG_UNTETHERED_WINDOW_LIMIT_TIMEOUT_NS_OFFSET, value);
+    }
+
+    /**
+     * Get the untethered linger timeout in nanoseconds from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the untethered window limit timeout in nanoseconds.
+     */
+    public static long untetheredLingerTimeoutNs(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getLong(LOG_UNTETHERED_LINGER_TIMEOUT_NS_OFFSET);
+    }
+
+    /**
+     * Set the untethered linger timeout in nanoseconds in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the untethered linger timeout to set.
+     */
+    public static void untetheredLingerTimeoutNs(final UnsafeBuffer metadataBuffer, final long value)
+    {
+        metadataBuffer.putLong(LOG_UNTETHERED_LINGER_TIMEOUT_NS_OFFSET, value);
+    }
+
+    /**
+     * Get the untethered resting timeout in nanoseconds from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the untethered resting timeout in nanoseconds.
+     */
+    public static long untetheredRestingTimeoutNs(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getLong(LOG_UNTETHERED_RESTING_TIMEOUT_NS_OFFSET);
+    }
+
+    /**
+     * Set the untethered resting timeout in nanoseconds in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the untethered resting timeout to set.
+     */
+    public static void untetheredRestingTimeoutNs(final UnsafeBuffer metadataBuffer, final long value)
+    {
+        metadataBuffer.putLong(LOG_UNTETHERED_RESTING_TIMEOUT_NS_OFFSET, value);
+    }
+
+    /**
+     * Get the maximum resend count from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the maximum resend count.
+     */
+    public static int maxResend(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getInt(LOG_MAX_RESEND_OFFSET);
+    }
+
+    /**
+     * Set the maximum resend count in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the maximum resend count to set.
+     */
+    public static void maxResend(final UnsafeBuffer metadataBuffer, final int value)
+    {
+        metadataBuffer.putInt(LOG_MAX_RESEND_OFFSET, value);
+    }
+
+    /**
+     * Get the linger timeout in nanoseconds from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the linger timeout in nanoseconds.
+     */
+    public static long lingerTimeoutNs(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getLong(LOG_LINGER_TIMEOUT_NS_OFFSET);
+    }
+
+    /**
+     * Set the linger timeout in nanoseconds in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the linger timeout to set.
+     */
+    public static void lingerTimeoutNs(final UnsafeBuffer metadataBuffer, final long value)
+    {
+        metadataBuffer.putLong(LOG_LINGER_TIMEOUT_NS_OFFSET, value);
+    }
+
+    /**
+     * Get the entity tag  from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the entity tag in nanoseconds.
+     */
+    public static long entityTag(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getLong(LOG_ENTITY_TAG_OFFSET);
+    }
+
+    /**
+     * Set the entity tag in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the entity tag to set.
+     */
+    public static void entityTag(final UnsafeBuffer metadataBuffer, final long value)
+    {
+        metadataBuffer.putLong(LOG_ENTITY_TAG_OFFSET, value);
+    }
+
+    /**
+     * Get the response correlation id  from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return the entity tag in nanoseconds.
+     */
+    public static long responseCorrelationId(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getLong(LOG_RESPONSE_CORRELATION_ID_OFFSET);
+    }
+
+    /**
+     * Set the response correlation id in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          the resonse correlation id to set.
+     */
+    public static void responseCorrelationId(final UnsafeBuffer metadataBuffer, final long value)
+    {
+        metadataBuffer.putLong(LOG_RESPONSE_CORRELATION_ID_OFFSET, value);
+    }
+
+    /**
+     * Get whether the signal EOS is enabled from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return true if signal EOS is enabled, otherwise false.
+     */
+    public static boolean signalEos(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getByte(LOG_SIGNAL_EOS_OFFSET) == 1;
+    }
+
+    /**
+     * Set whether the signal EOS is enabled in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          true if signal EOS is enabled, otherwise false.
+     */
+    public static void signalEos(final UnsafeBuffer metadataBuffer, final boolean value)
+    {
+        metadataBuffer.putByte(LOG_SIGNAL_EOS_OFFSET, (byte)(value ? 1 : 0));
+    }
+
+    /**
+     * Get whether spies simulate connection from the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return true if spies simulate connection, otherwise false.
+     */
+    public static boolean spiesSimulateConnection(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getByte(LOG_SPIES_SIMULATE_CONNECTION_OFFSET) == 1;
+    }
+
+    /**
+     * Set whether spies simulate connection in the metadata.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          true if spies simulate connection, otherwise false.
+     */
+    public static void spiesSimulateConnection(final UnsafeBuffer metadataBuffer, final boolean value)
+    {
+        metadataBuffer.putByte(LOG_SPIES_SIMULATE_CONNECTION_OFFSET, (byte)(value ? 1 : 0));
     }
 }

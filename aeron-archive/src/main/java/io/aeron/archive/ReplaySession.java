@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 Real Logic Limited.
+ * Copyright 2014-2025 Real Logic Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,8 +38,18 @@ import java.nio.file.StandardOpenOption;
 import java.util.EnumSet;
 
 import static io.aeron.archive.Archive.segmentFileName;
-import static io.aeron.logbuffer.FrameDescriptor.*;
-import static io.aeron.protocol.DataHeaderFlyweight.*;
+import static io.aeron.logbuffer.FrameDescriptor.FRAME_ALIGNMENT;
+import static io.aeron.logbuffer.FrameDescriptor.frameLength;
+import static io.aeron.logbuffer.FrameDescriptor.frameSessionId;
+import static io.aeron.logbuffer.FrameDescriptor.frameType;
+import static io.aeron.protocol.DataHeaderFlyweight.HDR_TYPE_DATA;
+import static io.aeron.protocol.DataHeaderFlyweight.HDR_TYPE_PAD;
+import static io.aeron.protocol.DataHeaderFlyweight.HEADER_LENGTH;
+import static io.aeron.protocol.DataHeaderFlyweight.SESSION_ID_FIELD_OFFSET;
+import static io.aeron.protocol.DataHeaderFlyweight.STREAM_ID_FIELD_OFFSET;
+import static io.aeron.protocol.DataHeaderFlyweight.streamId;
+import static io.aeron.protocol.DataHeaderFlyweight.termId;
+import static io.aeron.protocol.DataHeaderFlyweight.termOffset;
 import static java.lang.Math.min;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static java.nio.file.StandardOpenOption.READ;
@@ -62,6 +72,7 @@ import static org.agrona.BitUtil.align;
  */
 class ReplaySession implements Session, AutoCloseable
 {
+    @SuppressWarnings("JavadocVariable")
     enum State
     {
         INIT, REPLAY, INACTIVE, DONE
@@ -101,6 +112,7 @@ class ReplaySession implements Session, AutoCloseable
     private File segmentFile;
     private State state = State.INIT;
     private String errorMessage = null;
+    private boolean revokePublication;
     private volatile boolean isAborted;
 
     ReplaySession(
@@ -161,7 +173,21 @@ class ReplaySession implements Session, AutoCloseable
     public void close()
     {
         final CountedErrorHandler errorHandler = controlSession.archiveConductor().context().countedErrorHandler();
-        CloseHelper.close(errorHandler, publication);
+        if (revokePublication)
+        {
+            try
+            {
+                publication.revoke();
+            }
+            catch (final Exception ex)
+            {
+                errorHandler.onError(ex);
+            }
+        }
+        else
+        {
+            CloseHelper.close(errorHandler, publication);
+        }
         CloseHelper.close(errorHandler, fileChannel);
     }
 
@@ -182,6 +208,7 @@ class ReplaySession implements Session, AutoCloseable
 
         if (isAborted)
         {
+            revokePublication = true;
             state(State.INACTIVE, "replay aborted");
         }
 
@@ -215,7 +242,7 @@ class ReplaySession implements Session, AutoCloseable
     /**
      * {@inheritDoc}
      */
-    public void abort()
+    public void abort(final String reason)
     {
         isAborted = true;
     }
@@ -325,6 +352,7 @@ class ReplaySession implements Session, AutoCloseable
     {
         if (!publication.isConnected())
         {
+            revokePublication = true;
             state(State.INACTIVE, "publication is not connected");
             return 0;
         }
@@ -444,7 +472,8 @@ class ReplaySession implements Session, AutoCloseable
         }
         else if (Publication.CLOSED == position || Publication.NOT_CONNECTED == position)
         {
-            onError("stream closed before replay complete");
+            revokePublication = true;
+            state(State.INACTIVE, "stream closed before replay complete");
         }
 
         return false;
@@ -488,6 +517,7 @@ class ReplaySession implements Session, AutoCloseable
 
     private void onError(final String errorMessage)
     {
+        revokePublication = true;
         this.errorMessage = errorMessage + ", recordingId=" + recordingId + ", sessionId=" + sessionId;
         state(State.INACTIVE, errorMessage);
     }
@@ -588,8 +618,7 @@ class ReplaySession implements Session, AutoCloseable
 
     private void state(final State newState, final String reason)
     {
-        logStateChange(state, newState, sessionId, recordingId, replayPosition,
-            null == reason ? "" : reason);
+        logStateChange(state, newState, sessionId, recordingId, replayPosition, null == reason ? "" : reason);
         state = newState;
     }
 
